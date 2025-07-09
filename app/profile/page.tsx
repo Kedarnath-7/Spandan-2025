@@ -39,8 +39,12 @@ import Footer from '@/components/Footer';
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, signOut, refreshUser } = useAuth();
   const { toast } = useToast();
+  
+  // Add retry state for auth issues
+  const [authRetryCount, setAuthRetryCount] = useState(0);
+  const [isRefreshingAuth, setIsRefreshingAuth] = useState(false);
   
   // Profile form state
   const [profileData, setProfileData] = useState({
@@ -70,6 +74,46 @@ export default function ProfilePage() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [unifiedRegistration, setUnifiedRegistration] = useState<UnifiedRegistration | null>(null);
   const [registrationDataLoading, setRegistrationDataLoading] = useState(true);
+
+  // Enhanced auth check with retry mechanism
+  useEffect(() => {
+    const checkAuthWithRetry = async () => {
+      if (loading) return; // Still loading, wait
+      
+      if (!user && authRetryCount < 3) {
+        console.log(`Auth retry attempt ${authRetryCount + 1}/3`);
+        setIsRefreshingAuth(true);
+        setAuthRetryCount(prev => prev + 1);
+        
+        try {
+          // Try to refresh user data
+          await refreshUser();
+          
+          // Wait a bit then check again
+          setTimeout(() => {
+            setIsRefreshingAuth(false);
+          }, 1000);
+        } catch (error) {
+          console.error('Auth refresh failed:', error);
+          setIsRefreshingAuth(false);
+        }
+        return;
+      }
+      
+      if (!user && authRetryCount >= 3) {
+        console.log('Auth retry limit reached, redirecting to login');
+        toast({
+          title: 'Session Expired',
+          description: 'Please login again to continue',
+          variant: 'destructive'
+        });
+        router.push('/login');
+        return;
+      }
+    };
+
+    checkAuthWithRetry();
+  }, [user, loading, authRetryCount, refreshUser, router, toast]);
 
   // Load real user profile and registration data
   useEffect(() => {
@@ -340,12 +384,19 @@ export default function ProfilePage() {
     }
   };
 
-  if (loading) {
+  if (loading || isRefreshingAuth) {
     return (
       <div className="min-h-screen bg-[#0A0F1A] text-white flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-300">Loading your profile...</p>
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-cyan-400" />
+          <p className="text-white mb-2">
+            {isRefreshingAuth ? 'Refreshing session...' : 'Loading profile...'}
+          </p>
+          {authRetryCount > 0 && (
+            <p className="text-gray-400 text-sm">
+              Retry attempt {authRetryCount}/3
+            </p>
+          )}
         </div>
       </div>
     );
@@ -388,9 +439,45 @@ export default function ProfilePage() {
             </div>
             
             <div className="flex items-center space-x-3">
+              {/* Refresh button for debugging auth issues */}
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={async () => {
+                  setIsRefreshingAuth(true);
+                  try {
+                    await refreshUser();
+                    toast({
+                      title: 'Session Refreshed',
+                      description: 'Your session has been updated',
+                    });
+                  } catch (error) {
+                    toast({
+                      title: 'Refresh Failed',
+                      description: 'Unable to refresh session. Please try logging out and back in.',
+                      variant: 'destructive'
+                    });
+                  } finally {
+                    setIsRefreshingAuth(false);
+                  }
+                }}
+                className="text-gray-400 hover:text-white"
+                disabled={isRefreshingAuth}
+              >
+                {isRefreshingAuth ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  'Refresh'
+                )}
+              </Button>
+              
               {user.isAdmin && (
                 <Link href="/admin/dashboard">
                   <Button variant="outline" className="border-cyan-500 text-cyan-400 hover:bg-cyan-500/10">
+                    Admin Dashboard
+                  </Button>
+                </Link>
+              )}
                     Admin Dashboard
                   </Button>
                 </Link>
