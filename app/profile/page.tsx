@@ -435,7 +435,7 @@ export default function ProfilePage() {
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold text-white">Profile Dashboard</h1>
-              <p className="text-gray-300">Welcome back, {user.name || user.email.split('@')[0]}!</p>
+              <p className="text-gray-300">Welcome back, {user?.name || user?.email?.split('@')[0]}!</p>
             </div>
             
             <div className="flex items-center space-x-3">
@@ -471,13 +471,9 @@ export default function ProfilePage() {
                 )}
               </Button>
               
-              {user.isAdmin && (
+              {user?.isAdmin && (
                 <Link href="/admin/dashboard">
                   <Button variant="outline" className="border-cyan-500 text-cyan-400 hover:bg-cyan-500/10">
-                    Admin Dashboard
-                  </Button>
-                </Link>
-              )}
                     Admin Dashboard
                   </Button>
                 </Link>
@@ -514,13 +510,13 @@ export default function ProfilePage() {
                   <CardContent className="space-y-3">
                     <div className="flex items-center space-x-2">
                       <Mail className="w-4 h-4 text-gray-400" />
-                      <span className="text-gray-300 text-sm">{user.email}</span>
+                      <span className="text-gray-300 text-sm">{user?.email}</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <CheckCircle className="w-4 h-4 text-green-400" />
                       <span className="text-green-400 text-sm">Email Verified</span>
                     </div>
-                    {user.isAdmin && (
+                    {user?.isAdmin && (
                       <Badge className="bg-cyan-500/20 text-cyan-400 border-cyan-500/30">
                         Admin Access
                       </Badge>
@@ -680,7 +676,7 @@ export default function ProfilePage() {
                               {unifiedRegistration.reviewed_at && (
                                 <div className="mt-4 pt-4 border-t border-gray-600">
                                   <p className="text-sm text-gray-400">
-                                    Reviewed on {new Date(unifiedRegistration.reviewed_at).toLocaleString()}
+                                    Reviewed on {unifiedRegistration.reviewed_at ? new Date(unifiedRegistration.reviewed_at).toLocaleString() : 'N/A'}
                                   </p>
                                   {unifiedRegistration.rejection_reason && (
                                     <div className="mt-2 p-3 bg-red-900/20 border border-red-500/30 rounded">
