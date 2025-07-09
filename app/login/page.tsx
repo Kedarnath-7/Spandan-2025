@@ -13,10 +13,12 @@ import { isAdminEmailSync } from '@/lib/config/admin';
 import { Lock, User, ArrowLeft, Mail, Eye, EyeOff } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
+import { useAuth } from '@/lib/contexts/AuthContext';
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { session, loading } = useAuth();
   const redirectTo = searchParams.get('redirect') || null;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,6 +26,15 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [needsVerification, setNeedsVerification] = useState(false);
   const { toast } = useToast();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!loading && session) {
+      // Always redirect to target URL or profile (simplified flow)
+      const targetUrl = redirectTo || '/profile';
+      window.location.href = targetUrl;
+    }
+  }, [session, loading, redirectTo]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,14 +67,14 @@ export default function LoginPage() {
           description: `Welcome ${isAdminEmailSync(userEmail) ? 'Admin' : 'to SPANDAN 2025'}!`,
         });
         
-        // Role-based redirection with redirect parameter support
-        if (redirectTo) {
-          router.push(redirectTo);
-        } else if (isAdminEmailSync(userEmail)) {
-          router.push('/admin/dashboard');
-        } else {
-          router.push('/profile');
-        }
+        // Simplified redirect - always go to redirect target or profile
+        setTimeout(() => {
+          if (redirectTo) {
+            window.location.href = redirectTo;
+          } else {
+            window.location.href = '/profile';
+          }
+        }, 1000);
       }
     } catch (error: any) {
       console.error('Login error:', error);

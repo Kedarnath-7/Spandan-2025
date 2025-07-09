@@ -64,12 +64,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
+        console.log('Current URL:', window.location.href);
         
         setSession(session);
         
         if (session) {
           const currentUser = await getCurrentUser();
           setUser(currentUser);
+          console.log('User set in auth context:', currentUser);
         } else {
           setUser(null);
         }

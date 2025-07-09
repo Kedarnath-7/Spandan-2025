@@ -111,8 +111,8 @@ export default function Navigation({ cartCount = 0 }: NavigationProps) {
                   </Link>
                 )}
                 
-                {/* My Account Button */}
-                <Link href={isAdmin ? "/admin/dashboard" : "/profile"}>
+                {/* My Account Button - always goes to profile */}
+                <Link href="/profile">
                   <Button variant="ghost" className="text-gray-300 hover:text-black bg-gray-800/50 px-4 py-2 h-auto rounded-full text-sm">
                     <User className="w-4 h-4 mr-2" />
                     My Account

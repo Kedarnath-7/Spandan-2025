@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/lib/contexts/AuthContext';
+import { isAdminEmailSync } from '@/lib/config/admin';
 import { eventService } from '@/lib/services/events';
 import { Event } from '@/lib/types';
 import { 
@@ -69,6 +71,7 @@ const initialFormData: EventFormData = {
 
 export default function AdminEventManagement() {
   const router = useRouter();
+  const { user, session, loading } = useAuth();
   const { toast } = useToast();
   
   const [events, setEvents] = useState<Event[]>([]);
@@ -81,23 +84,31 @@ export default function AdminEventManagement() {
   const [formData, setFormData] = useState<EventFormData>(initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Check authentication on component mount
+  // Check authentication and admin privileges
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+    if (!loading) {
+      if (!session || !user) {
         toast({
           title: 'Authentication Required',
           description: 'Please login to access admin panel',
           variant: 'destructive'
         });
-        window.location.href = '/admin';
+        router.push('/login');
         return;
       }
-    };
 
-    checkAuth();
-  }, [toast]);
+      // Check if user is admin
+      if (!user.isAdmin) {
+        toast({
+          title: 'Access Denied',
+          description: 'You do not have admin privileges',
+          variant: 'destructive'
+        });
+        router.push('/profile');
+        return;
+      }
+    }
+  }, [loading, session, user, toast, router]);
 
   useEffect(() => {
     const loadEvents = async () => {
@@ -278,9 +289,9 @@ export default function AdminEventManagement() {
 
   const getCategoryBadge = (category: string) => {
     const colors = {
-      'Cultural': 'bg-purple-500',
-      'Sports': 'bg-green-500',
-      'Fine Arts': 'bg-pink-500',
+      'Cultural': 'bg-green-500',
+      'Sports': 'bg-red-500',
+      'Fine Arts': 'bg-purple-500',
       'Literary': 'bg-blue-500',
       'Academic': 'bg-orange-500'
     };
@@ -290,6 +301,23 @@ export default function AdminEventManagement() {
       </Badge>
     );
   };
+
+  // Show loading while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0A0F1A] text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
+          <p className="text-gray-300">Loading admin events...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated or not admin (will redirect)
+  if (!session || !user || !user.isAdmin) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-[#0A0F1A] text-white relative overflow-hidden">

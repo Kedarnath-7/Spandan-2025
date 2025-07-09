@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
+import { isAdminEmailSync } from '@/lib/config/admin';
+import { useAuth } from '@/lib/contexts/AuthContext';
 import { UnifiedRegistrationService } from '@/lib/services/unifiedRegistrationAdmin';
 import { 
   Users, 
@@ -45,6 +47,7 @@ interface Registration {
 
 export default function AdminDashboard() {
   const router = useRouter();
+  const { user, session, loading } = useAuth();
   const { toast } = useToast();
   const [stats, setStats] = useState<DashboardStats>({
     totalRegistrations: 0,
@@ -55,23 +58,31 @@ export default function AdminDashboard() {
   const [recentRegistrations, setRecentRegistrations] = useState<Registration[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check authentication on component mount
+  // Check authentication and admin privileges
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+    if (!loading) {
+      if (!session || !user) {
         toast({
           title: 'Authentication Required',
           description: 'Please login to access admin panel',
           variant: 'destructive'
         });
-        window.location.href = '/admin';
+        router.push('/login');
         return;
       }
-    };
 
-    checkAuth();
-  }, [toast]);
+      // Check if user is admin
+      if (!user.isAdmin) {
+        toast({
+          title: 'Access Denied',
+          description: 'You do not have admin privileges',
+          variant: 'destructive'
+        });
+        router.push('/profile');
+        return;
+      }
+    }
+  }, [loading, session, user, toast, router]);
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -223,6 +234,23 @@ export default function AdminDashboard() {
         return <Badge className="bg-gray-500 text-white">{tier}</Badge>;
     }
   };
+
+  // Show loading while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0A0F1A] text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
+          <p className="text-gray-300">Loading admin dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated or not admin (will redirect)
+  if (!session || !user || !user.isAdmin) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-[#0A0F1A] text-white relative overflow-hidden">
