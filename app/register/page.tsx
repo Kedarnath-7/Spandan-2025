@@ -2,55 +2,57 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import Image from 'next/image'
+import QRCode from 'qrcode'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2, Users, Calendar, MapPin, Star, Shield, Mail, Phone, Zap, ArrowLeft, ArrowRight, Copy } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Loader2, Plus, Trash2, Upload, CreditCard, CheckCircle, Copy, QrCode, Smartphone, Ticket, Trophy, Sparkles, FileText, ExternalLink, Info, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Event, RegistrationTier } from '@/lib/types'
 import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer'
-import PaymentComponent from '@/components/PaymentComponent'
-import { unifiedRegistrationService } from '@/lib/services/unifiedRegistration'
-import { UnifiedRegistrationService } from '@/lib/services/unifiedRegistrationAdmin'
-import type { CompleteRegistrationData } from '@/lib/services/unifiedRegistration'
-import { useAuth } from '@/lib/contexts/AuthContext'
-import AuthProtectedRoute from '@/components/AuthProtectedRoute'
-import ProfileCompletion from '@/components/ProfileCompletion'
-import RegistrationStatus from '@/components/RegistrationStatus'
-import { getUserProfile, type UserProfile } from '@/lib/services/userProfile'
+import { EnhancedGroupRegistrationService } from '@/lib/services/enhancedGroupRegistration'
+import { EnhancedPricingService } from '@/lib/services/enhancedPricingService'
+import { validateNameDetailed, validateEmailDetailed, validatePhoneDetailed, validateCollegeDetailed, validateCollegeLocation, validateRequiredFields, validateAllMembers, validateTransactionIdDetailed, type FieldValidationResult } from '@/lib/utils/validation'
+import { DuplicateRegistrationService, type DuplicateCheckResult } from '@/lib/services/duplicateRegistrationService'
+import type { EnhancedRegistrationFormData, EnhancedMemberFormData, TierType, PassType, PassTier, SelectionType } from '@/lib/types'
+import { TIER_PRICES, PASS_PRICES } from '@/lib/types'
 
-// Safely import eventService with fallback
-let eventService: any = null;
-try {
-  eventService = require('@/lib/services/events').eventService;
-} catch (error) {
-  console.warn('EventService not available:', error);
+// Payment configuration  
+const PAYMENT_CONFIG = {
+  upiId: '9442172827@sbi',
+  merchantName: 'DIRECTOR ACCOUNTS OFFICIER JIPMER RECEIPTS'
 }
 
-const REGISTRATION_TIERS: RegistrationTier[] = [
+// Enhanced tier definitions with fantastic styling
+const REGISTRATION_TIERS = [
   {
-    id: 'tier1',
-    name: 'TIER 1',
+    id: 'Issue #1' as TierType,
+    name: 'Issue #1',
     price: 375,
-    description: 'Participate in all competitive events and spectate all competitive events (except demier cri)',
+    description: 'Basic delegate access to competitive events and essential pro-shows',
     features: [
       'Inaugural night (day 1)',
       'Chorea night (day 2)', 
       'Aalap finale (day 3)',
-      'Tinnitus finale (day 4)',
       'DJ night (day 1)',
       '1 minor proshow'
     ],
-    icon: 'shield',
-    bgColor: 'bg-gradient-to-br from-red-600 to-red-700'
+    bgColor: 'bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-800',
+    textColor: 'text-purple-100',
+    icon: Trophy,
+    glow: 'shadow-purple-500/25'
   },
   {
-    id: 'tier2',
-    name: 'TIER 2',
+    id: 'Deluxe Edition' as TierType,
+    name: 'Deluxe Edition',
     price: 650,
-    description: 'Participate in all competitive events and spectate all competitive events (except demier cri)',
+    description: 'Enhanced delegate access with additional DJ nights and pro-shows',
     features: [
       'Inaugural night (day 1)',
       'Chorea night (day 2)',
@@ -59,800 +61,1230 @@ const REGISTRATION_TIERS: RegistrationTier[] = [
       'DJ night (day 1 & 2)',
       '2 minor proshows'
     ],
-    icon: 'star',
-    bgColor: 'bg-gradient-to-br from-orange-600 to-amber-700'
+    bgColor: 'bg-gradient-to-br from-amber-500 via-orange-600 to-red-700',
+    textColor: 'text-amber-100',
+    icon: Sparkles,
+    glow: 'shadow-orange-500/25'
   },
   {
-    id: 'tier3',
-    name: 'TIER 3',
+    id: 'Collectors Print' as TierType,
+    name: 'Collectors Print',
     price: 850,
-    description: 'Participate in all competitive events and spectate all competitive events (incl. demier cri)',
+    description: 'Premium delegate access with all events including exclusive experiences',
     features: [
       'Inaugural night (day 1)',
       'Chorea night (day 2)',
       'Aalap finale (day 3)',
       'Tinnitus finale (day 4)',
-      'DJ night (day 1, 2 & 3)',
+      'DJ night (all 3 days)',
       '2 minor proshows',
-      'Major proshow'
+      'Major proshow access'
     ],
-    icon: 'trophy',
-    bgColor: 'bg-gradient-to-br from-teal-600 to-cyan-700'
+    bgColor: 'bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700',
+    textColor: 'text-emerald-100',
+    icon: CreditCard,
+    glow: 'shadow-teal-500/25'
   }
 ]
 
-export default function RegisterPage() {
-  return (
-    <AuthProtectedRoute fallbackPath="/register">
-      <RegisterPageContent />
-    </AuthProtectedRoute>
-  )
-}
+// Enhanced pass definitions with fantastic styling  
+const REGISTRATION_PASSES = [
+  {
+    id: 'Nexus Arena' as PassType,
+    name: 'Nexus Arena - Sports Pass',
+    price: 250,
+    description: 'Access to spectate and participate in all sports events',
+    details: 'Event registration fee to be paid separately',
+    features: [
+      'Spectate all sports events',
+      'Participate in sports events*',
+      'Access to sports venues',
+      'Sports event scheduling priority'
+    ],
+    bgColor: 'bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800',
+    textColor: 'text-blue-100',
+    icon: Trophy,
+    glow: 'shadow-blue-500/25'
+  },
+  {
+    id: 'Nexus Spotlight' as PassType,
+    name: 'Nexus Spotlight - CULT Pass',
+    price: 250,
+    description: 'Access to spectate and participate in minor stage and fine arts events',
+    details: 'Does not allow participation in Major Cultural Events',
+    features: [
+      'Spectate all minor cultural events',
+      'Participate in fine arts events*',
+      'Access to minor stage performances',
+      'Fine arts workshop access'
+    ],
+    bgColor: 'bg-gradient-to-br from-pink-600 via-rose-700 to-red-800',
+    textColor: 'text-pink-100',
+    icon: Sparkles,
+    glow: 'shadow-pink-500/25'
+  },
+  {
+    id: 'Nexus Forum' as PassType,
+    name: 'Nexus Forum - LIT Pass',
+    tiers: [
+      { id: 'Standard' as PassTier, name: 'Standard', price: 250 },
+      { id: 'Premium' as PassTier, name: 'Premium', price: 750 }
+    ],
+    description: 'Literary and academic event access with varying amenities',
+    details: 'For detailed amenities refer to the brochure',
+    features: [
+      'Literary event access',
+      'Academic workshops',
+      'Debate competitions',
+      'Writing contests',
+      'Premium: Enhanced amenities (see brochure)'
+    ],
+    bgColor: 'bg-gradient-to-br from-violet-600 via-purple-700 to-indigo-800',
+    textColor: 'text-violet-100',
+    icon: FileText,
+    glow: 'shadow-violet-500/25'
+  }
+]
 
-function RegisterPageContent() {
+export default function EnhancedRegisterPage() {
   const router = useRouter()
-  const { user } = useAuth()
-
-  // Multi-step form state
+  
+  // Form state
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
-  const [profileLoading, setProfileLoading] = useState(true)
-  const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false)
-  const [canRegister, setCanRegister] = useState(true)
-
-  // Static state - no dependencies on external contexts
-  const [events, setEvents] = useState<Event[]>([])
-  const [eventsLoading, setEventsLoading] = useState(false)
-  const [selectedTier, setSelectedTier] = useState<RegistrationTier | null>(null)
-  const [orderId, setOrderId] = useState('')
+  const [members, setMembers] = useState<EnhancedMemberFormData[]>([
+    {
+      name: '',
+      email: '',
+      college: '',
+      phone: '',
+      collegeLocation: '',
+      selectionType: 'tier',
+      tier: 'Issue #1'
+    }
+  ])
   
-  const [formData, setFormData] = useState({
-    name: '',
-    email: user?.email || '',
-    phone: '',
-    college: '',
-    year: '',
-    branch: '',
-    registrationTier: ''
-  })
+  // State for payment
+  const [paymentTransactionId, setPaymentTransactionId] = useState('')
+  const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null)
+  const [copying, setCopying] = useState(false)
+  const [qrCodeDataURL, setQrCodeDataURL] = useState<string>('')
 
-  const [selectedEventsByCategory, setSelectedEventsByCategory] = useState({
-    cultural: new Set<string>(),
-    sports: new Set<string>(),
-    fineArts: new Set<string>(),
-    literary: new Set<string>()
-  })
+  // Validation states
+  const [fieldErrors, setFieldErrors] = useState<Record<string, Record<string, string>>>({})
+  const [isValidating, setIsValidating] = useState<Record<string, boolean>>({})
+  const [duplicateChecks, setDuplicateChecks] = useState<Record<string, { email?: DuplicateCheckResult, phone?: DuplicateCheckResult }>>({})
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
+  const [paymentValidationError, setPaymentValidationError] = useState<string>('')
+  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false)
+  const [isCheckingTransactionId, setIsCheckingTransactionId] = useState(false)
 
-  // Copy order ID state
-  const [copyingOrderId, setCopyingOrderId] = useState(false)
+  // Add new member to group
+  const addMember = () => {
+    if (members.length < 12) {
+      setMembers([...members, {
+        name: '',
+        email: '',
+        college: '',
+        phone: '',
+        collegeLocation: '',
+        selectionType: 'tier',
+        tier: 'Issue #1'
+      }])
+    }
+  }
 
-  // Fetch user profile data
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (!user?.id) return;
-      
-      setProfileLoading(true);
-      try {
-        const profile = await getUserProfile(user.id);
-        if (profile && profile.name && profile.college && profile.phone && profile.year && profile.branch) {
-          // Profile is complete
-          setUserProfile(profile);
-          setFormData(prev => ({
-            ...prev,
-            name: profile.name || '',
-            email: profile.email || user.email || '',
-            phone: profile.phone || '',
-            college: profile.college || '',
-            year: profile.year || '',
-            branch: profile.branch || ''
-          }));
-          setNeedsProfileCompletion(false);
-        } else {
-          // Profile is incomplete - need to complete it
-          setNeedsProfileCompletion(true);
-        }
-      } catch (error) {
-        console.error('Error fetching user profile:', error);
-        // If profile doesn't exist, need to create it
-        setNeedsProfileCompletion(true);
-      } finally {
-        setProfileLoading(false);
+  // Remove member from group
+  const removeMember = (index: number) => {
+    if (members.length > 1) {
+      setMembers(members.filter((_, i) => i !== index))
+    }
+  }
+
+  // Update member data
+  const updateMember = (index: number, field: keyof EnhancedMemberFormData, value: any) => {
+    const updatedMembers = [...members]
+    
+    // Handle selection type change - reset tier/pass fields
+    if (field === 'selectionType') {
+      updatedMembers[index] = {
+        ...updatedMembers[index],
+        selectionType: value,
+        tier: value === 'tier' ? 'Issue #1' : undefined,
+        passType: value === 'pass' ? 'Nexus Arena' : undefined,
+        passTier: undefined
       }
-    };
+    } 
+    // Handle pass type change - reset pass tier for non-Forum passes
+    else if (field === 'passType') {
+      updatedMembers[index] = {
+        ...updatedMembers[index],
+        passType: value,
+        passTier: value === 'Nexus Forum' ? 'Standard' : undefined
+      }
+    }
+    else {
+      updatedMembers[index] = {
+        ...updatedMembers[index],
+        [field]: value
+      }
+    }
+    
+    setMembers(updatedMembers)
+    
+    // Validate field if it's a text input (with debouncing)
+    if (typeof value === 'string' && ['name', 'email', 'phone', 'college', 'collegeLocation'].includes(field)) {
+      // Clear any existing timeout for this field
+      const timeoutKey = `${index}-${field}`
+      const existingTimeout = (validateField as any).timeouts?.[timeoutKey]
+      if (existingTimeout) {
+        clearTimeout(existingTimeout)
+      }
+      
+      // Initialize timeouts object if it doesn't exist
+      if (!(validateField as any).timeouts) {
+        (validateField as any).timeouts = {}
+      }
+      
+      // Set new timeout for validation
+      ;(validateField as any).timeouts[timeoutKey] = setTimeout(() => {
+        validateField(index, field, value)
+        delete (validateField as any).timeouts[timeoutKey]
+      }, 500) // 500ms debounce
+    }
+  }
 
-    fetchUserProfile();
-  }, [user?.id, user?.email])
+  // Calculate total amount
+  const totalAmount = EnhancedPricingService.calculateTotalAmount(members)
 
-  const handleProfileComplete = (profile: UserProfile) => {
-    setUserProfile(profile);
-    setFormData(prev => ({
+  // Generate QR code for UPI payment
+  useEffect(() => {
+    const generateQRCode = async () => {
+      try {
+        const upiUrl = `upi://pay?pa=${PAYMENT_CONFIG.upiId}&pn=${encodeURIComponent(PAYMENT_CONFIG.merchantName)}&am=${totalAmount}&cu=INR&mc=8220&mode=02&purpose=00`
+        const dataURL = await QRCode.toDataURL(upiUrl, {
+          width: 256,
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+          }
+        })
+        setQrCodeDataURL(dataURL)
+      } catch (error) {
+        console.error('Error generating QR code:', error)
+      }
+    }
+
+    if (totalAmount > 0) {
+      generateQRCode()
+    }
+  }, [totalAmount])
+
+  // Real-time validation for Transaction ID
+  useEffect(() => {
+    const debounceTimeout = setTimeout(() => {
+      if (paymentTransactionId.trim() === '') {
+        setPaymentValidationError('')
+        return
+      }
+      validatePaymentDetails()
+    }, 500) // 500ms debounce
+
+    return () => clearTimeout(debounceTimeout)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paymentTransactionId])
+
+  // Validation functions
+  const validateField = async (memberIndex: number, field: string, value: string) => {
+    let validation: FieldValidationResult = { isValid: true }
+    
+    switch (field) {
+      case 'name':
+        validation = validateNameDetailed(value)
+        break
+      case 'email':
+        validation = validateEmailDetailed(value)
+        // Check for duplicates if email is valid
+        if (validation.isValid && value.trim()) {
+          setIsValidating(prev => ({ ...prev, [`${memberIndex}-email`]: true }))
+          try {
+            const duplicateResult = await DuplicateRegistrationService.checkEmailExists(value)
+            setDuplicateChecks(prev => ({
+              ...prev,
+              [memberIndex]: { ...prev[memberIndex], email: duplicateResult }
+            }))
+            if (duplicateResult.isDuplicate) {
+              validation = {
+                isValid: false,
+                error: `Email already registered in ${duplicateResult.existingRegistration?.groupId} (${duplicateResult.existingRegistration?.memberName})`
+              }
+            }
+          } catch (error) {
+            console.error('Error checking email duplicate:', error)
+          } finally {
+            setIsValidating(prev => ({ ...prev, [`${memberIndex}-email`]: false }))
+          }
+        }
+        break
+      case 'phone':
+        validation = validatePhoneDetailed(value)
+        // Check for duplicates if phone is valid
+        if (validation.isValid && value.trim()) {
+          setIsValidating(prev => ({ ...prev, [`${memberIndex}-phone`]: true }))
+          try {
+            const duplicateResult = await DuplicateRegistrationService.checkPhoneExists(value)
+            setDuplicateChecks(prev => ({
+              ...prev,
+              [memberIndex]: { ...prev[memberIndex], phone: duplicateResult }
+            }))
+            if (duplicateResult.isDuplicate) {
+              validation = {
+                isValid: false,
+                error: `Phone number already registered in ${duplicateResult.existingRegistration?.groupId} (${duplicateResult.existingRegistration?.memberName})`
+              }
+            }
+          } catch (error) {
+            console.error('Error checking phone duplicate:', error)
+          } finally {
+            setIsValidating(prev => ({ ...prev, [`${memberIndex}-phone`]: false }))
+          }
+        }
+        break
+      case 'college':
+        validation = validateCollegeDetailed(value)
+        break
+      case 'collegeLocation':
+        validation = validateCollegeLocation(value)
+        break
+    }
+
+    // Update validation errors using the same state as UI
+    setValidationErrors(prev => ({
       ...prev,
-      name: profile.name || '',
-      email: profile.email || user?.email || '',
-      phone: profile.phone || '',
-      college: profile.college || '',
-      year: profile.year || '',
-      branch: profile.branch || ''
-    }));
-    setNeedsProfileCompletion(false);
-  };
-
-  // Update email when user data is available (fallback)
-  useEffect(() => {
-    if (user?.email && !userProfile && formData.email !== user.email) {
-      setFormData(prev => ({ ...prev, email: user.email }))
-    }
-  }, [user?.email, userProfile, formData.email])
-
-  // Generate order ID on component mount
-  useEffect(() => {
-    setOrderId(unifiedRegistrationService.generateOrderId())
-  }, [])
-
-  // Load events in background with loading indicator
-  useEffect(() => {
-    const loadEventsFromDatabase = async () => {
-      if (!eventService) {
-        console.log('EventService not available - using static events only');
-        return;
-      }
-
-      try {
-        setEventsLoading(true)
-        const eventsData = await eventService.getAllEvents()
-        setEvents(eventsData || [])
-      } catch (error) {
-        console.error('Error loading events from database:', error)
-      } finally {
-        setEventsLoading(false)
-      }
-    }
-
-    const timeoutId = setTimeout(() => {
-      loadEventsFromDatabase()
-    }, 1000)
-
-    return () => clearTimeout(timeoutId)
-  }, [])
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
+      [`member_${memberIndex}_${field}`]: validation.isValid ? '' : (validation.error || 'Invalid input')
+    }))
   }
 
-  const handleTierSelect = (tier: RegistrationTier) => {
-    setSelectedTier(tier)
-    setFormData(prev => ({ ...prev, registrationTier: tier.id }))
+  // Check if member is valid
+  const isMemberValid = (memberIndex: number): boolean => {
+    const member = members[memberIndex]
+    const errors = fieldErrors[memberIndex] || {}
+    
+    // Check required fields
+    if (!member.name || !member.email || !member.college || !member.phone || !member.collegeLocation) {
+      return false
+    }
+    
+    // Check if there are any field errors
+    if (Object.values(errors).some(error => error)) {
+      return false
+    }
+    
+    // Check selection
+    if (member.selectionType === 'tier' && !member.tier) {
+      return false
+    }
+    
+    if (member.selectionType === 'pass' && !member.passType) {
+      return false
+    }
+    
+    if (member.selectionType === 'pass' && member.passType === 'Nexus Forum' && !member.passTier) {
+      return false
+    }
+    
+    return true
   }
 
-  const handleEventSelection = (category: string, eventName: string) => {
-    setSelectedEventsByCategory(prev => {
-      const newState = { ...prev }
-      const categorySet = new Set(newState[category as keyof typeof newState])
+  // Check if all members are valid
+  const areAllMembersValid = (): boolean => {
+    return members.every((_, index) => isMemberValid(index))
+  }
+
+  // Validate all members before proceeding to payment
+  const validateAllMembers = (): boolean => {
+    const newErrors: { [key: string]: string } = {}
+    let hasError = false
+
+    members.forEach((member, index) => {
+      // Validate each field for current member
+      const nameValidation = validateNameDetailed(member.name)
+      const emailValidation = validateEmailDetailed(member.email)
+      const phoneValidation = validatePhoneDetailed(member.phone)
       
-      if (categorySet.has(eventName)) {
-        categorySet.delete(eventName)
-      } else {
-        categorySet.add(eventName)
+      if (!nameValidation.isValid) {
+        newErrors[`member_${index}_name`] = nameValidation.error || 'Invalid name'
+        hasError = true
       }
       
-      newState[category as keyof typeof newState] = categorySet
-      return newState
+      if (!emailValidation.isValid) {
+        newErrors[`member_${index}_email`] = emailValidation.error || 'Invalid email'
+        hasError = true
+      }
+      
+      if (!phoneValidation.isValid) {
+        newErrors[`member_${index}_phone`] = phoneValidation.error || 'Invalid phone number'
+        hasError = true
+      }
+      
+      // Validate required fields
+      if (!member.college.trim()) {
+        newErrors[`member_${index}_college`] = 'College name is required'
+        hasError = true
+      }
+      
+      if (!member.selectionType.trim()) {
+        newErrors[`member_${index}_selectionType`] = 'Please select your access type'
+        hasError = true
+      }
     })
+
+    setValidationErrors(newErrors)
+    return !hasError
   }
 
-  const handleNextStep = () => {
-    if (currentStep === 1) {
-      if (!formData.name || !formData.email || !formData.phone || !formData.college || !formData.year || !formData.branch) {
-        toast.error('Please complete your profile with all required fields (including year and branch)')
-        return
-      }
-      if (!selectedTier) {
-        toast.error('Please select a registration tier to continue')
-        return
-      }
-    }
-    setCurrentStep(prev => prev + 1)
-  }
-
-  const handlePrevStep = () => {
-    setCurrentStep(prev => prev - 1)
-  }
-
-  // Calculate total amount including tier price and selected events
-  const calculateTotalAmount = () => {
-    let total = selectedTier?.price || 0;
-    
-    // Add prices for selected events
-    Object.entries(selectedEventsByCategory).forEach(([category, eventSet]) => {
-      eventSet.forEach(eventName => {
-        const event = events.find(e => e.name === eventName);
-        if (event && event.price > 0) {
-          total += event.price;
-        }
-      });
-    });
-    
-    return total;
-  }
-
-  // Copy order ID to clipboard
-  const handleCopyOrderId = async () => {
-    try {
-      setCopyingOrderId(true)
-      await navigator.clipboard.writeText(orderId)
-      toast.success('Order ID copied to clipboard!')
-    } catch (error) {
-      toast.error('Failed to copy Order ID')
-    } finally {
-      setCopyingOrderId(false)
-    }
-  }
-
-  const handlePaymentComplete = async (paymentData: { transactionId: string; screenshot: File }) => {
-    try {
-      setIsSubmitting(true)
+  // Handle continue to payment
+  const handleContinueToPayment = async () => {
+    // First validate all form fields
+    if (!validateAllMembers()) {
+      toast.error('Please fix all validation errors before proceeding')
       
-      const registrationData = {
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        college: formData.college,
-        year: formData.year,
-        branch: formData.branch,
-        tier: formData.registrationTier as 'tier1' | 'tier2' | 'tier3',
-        selectedEvents: {
-          cultural: Array.from(selectedEventsByCategory.cultural),
-          sports: Array.from(selectedEventsByCategory.sports),
-          fineArts: Array.from(selectedEventsByCategory.fineArts),
-          literary: Array.from(selectedEventsByCategory.literary)
-        },
-        transactionId: paymentData.transactionId,
-        screenshot: paymentData.screenshot
+      // Find the first error and scroll to it
+      const firstErrorKey = Object.keys(validationErrors).find(key => validationErrors[key])
+      if (firstErrorKey) {
+        const [, memberIndex, fieldName] = firstErrorKey.split('_')
+        const element = document.getElementById(`${fieldName}-${memberIndex}`)
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          element.focus()
+        }
+      }
+      return
+    }
+
+    // Check for duplicate registrations
+    setIsCheckingDuplicates(true)
+    try {
+      const duplicateCheck = await DuplicateRegistrationService.checkMultipleMembersDuplicates(members)
+      
+      if (duplicateCheck.hasDuplicates) {
+        // Show specific duplicate errors and scroll to first duplicate
+        duplicateCheck.duplicates.forEach((duplicate) => {
+          if (duplicate.emailDuplicate) {
+            toast.error(`Email already registered: ${members[duplicate.memberIndex].email}`)
+            // Scroll to the email field with duplicate
+            const emailElement = document.getElementById(`email-${duplicate.memberIndex}`)
+            if (emailElement) {
+              emailElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            }
+          }
+          if (duplicate.phoneDuplicate) {
+            toast.error(`Phone already registered: ${members[duplicate.memberIndex].phone}`)
+            // Scroll to the phone field with duplicate
+            const phoneElement = document.getElementById(`phone-${duplicate.memberIndex}`)
+            if (phoneElement) {
+              phoneElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            }
+          }
+        })
+        setIsCheckingDuplicates(false)
+        return
+      }
+      
+      // All validations passed, proceed to payment
+      setCurrentStep(2)
+    } catch (error) {
+      console.error('Error checking duplicates:', error)
+      toast.error('Error validating registration. Please try again.')
+    } finally {
+      setIsCheckingDuplicates(false)
+    }
+  }
+
+  // Validate payment details
+  const validatePaymentDetails = async (): Promise<boolean> => {
+    setPaymentValidationError('')
+    setIsCheckingTransactionId(true)
+
+    const transactionValidation = validateTransactionIdDetailed(paymentTransactionId)
+    
+    if (!transactionValidation.isValid) {
+      setPaymentValidationError(transactionValidation.error || 'Invalid transaction ID')
+      setIsCheckingTransactionId(false)
+      return false
+    }
+
+    // Check for duplicate transaction ID
+    try {
+      const duplicateCheck = await DuplicateRegistrationService.checkTransactionIdExists(paymentTransactionId)
+      if (duplicateCheck.isDuplicate) {
+        setPaymentValidationError(`Transaction ID already used in registration ${duplicateCheck.existingRegistration?.groupId}`)
+        setIsCheckingTransactionId(false)
+        return false
+      }
+    } catch (error) {
+      console.error('Error checking transaction ID duplicate:', error)
+      // Allow submission but log the error
+    } finally {
+      setIsCheckingTransactionId(false)
+    }
+    
+    setPaymentValidationError('')
+    return true
+  }
+
+  // Copy UPI ID to clipboard
+  const copyUpiId = async () => {
+    setCopying(true)
+    try {
+      await navigator.clipboard.writeText(PAYMENT_CONFIG.upiId)
+      toast.success('UPI ID copied to clipboard!')
+    } catch (error) {
+      toast.error('Failed to copy UPI ID')
+    } finally {
+      setCopying(false)
+    }
+  }
+
+  // Handle form submission
+  const handleSubmit = async () => {
+    setIsSubmitting(true)
+    
+    try {
+      console.log('Starting registration submission...');
+      
+      // Final validation check
+      const isPaymentDetailsValid = await validatePaymentDetails()
+      if (!isPaymentDetailsValid) {
+        setIsSubmitting(false)
+        return
+      }
+      
+      const formData: EnhancedRegistrationFormData = {
+        registrationType: members.length === 1 ? 'individual' : 'group',
+        members,
+        paymentTransactionId,
+        paymentScreenshot
       }
 
-      const result = await UnifiedRegistrationService.completeRegistration(registrationData)
+      console.log('Form data:', formData);
+
+      // Validate form data
+      const validation = EnhancedGroupRegistrationService.validateRegistrationData(formData)
+      if (!validation.isValid) {
+        console.error('Validation failed:', validation.errors);
+        toast.error(validation.errors[0])
+        setIsSubmitting(false)
+        return
+      }
+
+      console.log('Validation passed, submitting registration...');
+
+      // Submit registration
+      const result = await EnhancedGroupRegistrationService.submitRegistration(formData)
+      
+      console.log('Registration result:', result);
       
       if (result.success) {
-        toast.success(result.message)
-        
-        // Clear form data
-        setFormData({
-          name: '',
-          email: '',
-          phone: '',
-          college: '',
-          year: '',
-          branch: '',
-          registrationTier: ''
-        })
-        setSelectedEventsByCategory({
-          cultural: new Set(),
-          sports: new Set(),
-          fineArts: new Set(),
-          literary: new Set()
-        })
-        setSelectedTier(null)
-        setCurrentStep(1)
-        
-        // Redirect to profile page
-        router.push('/profile')
+        toast.success('Registration submitted successfully!')
+        // Redirect to registration status page with the group ID
+        router.push(`/registration-status?id=${result.groupId}`)
       } else {
-        toast.error(result.message)
+        console.error('Registration failed:', result.error);
+        toast.error(result.error || 'Registration failed')
       }
     } catch (error) {
       console.error('Registration error:', error)
-      toast.error('Registration failed. Please try again.')
+      toast.error(`An unexpected error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const getIcon = (iconName: string) => {
-    switch(iconName) {
-      case 'shield': return (
-        <svg className="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,7C13.4,7 14.8,8.6 14.8,10V11.5C15.4,11.5 16,12.4 16,13V16C16,17.4 15.4,18 14.8,18H9.2C8.6,18 8,17.4 8,16V13C8,12.4 8.6,11.5 9.2,11.5V10C9.2,8.6 10.6,7 12,7M12,8.2C11.2,8.2 10.5,8.7 10.5,10V11.5H13.5V10C13.5,8.7 12.8,8.2 12,8.2Z"/>
-        </svg>
-      );
-      case 'star': return (
-        <svg className="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.46,13.97L5.82,21L12,17.27Z"/>
-        </svg>
-      );
-      case 'trophy': return (
-        <svg className="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M7,15H9C9,16.08 9.37,17 10,17.2V20H8V22H16V20H14V17.2C14.63,17 15,16.08 15,15H17C18.1,15 19,14.1 19,13V9C19,8.4 18.6,8 18,8H17V7C17,5.9 16.1,5 15,5H9C7.9,5 7,5.9 7,7V8H6C5.4,8 5,8.4 5,9V13C5,14.1 5.9,15 7,15M9,7H15V8H9V7M7,10H5V13H7V10M19,10V13H17V10H19Z"/>
-        </svg>
-      );
-      default: return (
-        <svg className="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.46,13.97L5.82,21L12,17.27Z"/>
-        </svg>
-      );
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-[#0A0F1A] text-white relative overflow-hidden">
-      {/* Background Elements */}
-      <div className="absolute inset-0 opacity-[0.03]">
-        <div className="absolute top-20 left-10 text-6xl font-bold text-white transform -rotate-12">POW!</div>
-        <div className="absolute top-40 right-20 text-4xl font-bold text-white transform rotate-12">BOOM!</div>
-        <div className="absolute bottom-40 left-20 w-16 h-16 border-4 border-white transform rotate-45"></div>
-        <div className="absolute bottom-20 right-10 w-12 h-12 border-4 border-white transform rotate-12"></div>
-      </div>
-
-      {/* Navigation */}
-      <Navigation />
-
-      {/* Main Content */}
-      <main className="relative z-10 pt-32 pb-16">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          
-          {/* Hero Title */}
-          <div className="text-center mb-12">
-            <div className="inline-block bg-gradient-to-r from-cyan-400 to-blue-500 px-8 py-4 rounded-xl mb-6">
-              <h1 className="text-3xl md:text-4xl font-black text-white tracking-wide">
-                SUIT UP & REGISTER!
-              </h1>
+  // Render tier selection card
+  const renderTierCard = (tier: typeof REGISTRATION_TIERS[0], memberIndex: number, isSelected: boolean) => {
+    const Icon = tier.icon
+    return (
+      <Card 
+        key={tier.id}
+        className={`relative overflow-hidden transition-all duration-300 cursor-pointer transform hover:scale-105 h-full ${
+          isSelected 
+            ? `ring-2 ring-white ring-opacity-60 ${tier.glow} shadow-2xl` 
+            : 'hover:shadow-xl opacity-80 hover:opacity-100'
+        }`}
+        onClick={() => updateMember(memberIndex, 'tier', tier.id)}
+      >
+        <div className={`${tier.bgColor} ${tier.textColor} h-full flex flex-col justify-between`}>
+          <div className="p-6 flex-1">
+            <div className="absolute top-2 right-2">
+              <Icon className="w-8 h-8 opacity-30" />
             </div>
-            <p className="text-lg text-white max-w-4xl mx-auto">
-              Choose your registration tier and join the ultimate cultural & sports festival at JIPMER!
-            </p>
-          </div>
-
-          {/* Profile Completion Check */}
-          {profileLoading ? (
-            <div className="flex items-center justify-center py-16">
-              <div className="text-center">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-400" />
-                <p className="text-white">Loading your profile...</p>
+            {isSelected && (
+              <div className="absolute top-2 left-2">
+                <CheckCircle className="w-6 h-6 text-white" />
               </div>
+            )}
+            <CardHeader className="p-0 mb-4">
+              <CardTitle className="text-xl font-bold mb-2">{tier.name}</CardTitle>
+              <div className="text-3xl font-bold mb-2">₹{tier.price}</div>
+              <p className="text-sm opacity-90">{tier.description}</p>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ul className="space-y-2">
+                {tier.features.map((feature, index) => (
+                  <li key={index} className="flex items-center text-sm">
+                    <CheckCircle className="w-4 h-4 mr-2 opacity-80 flex-shrink-0" />
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </div>
+        </div>
+      </Card>
+    )
+  }
+
+  // Render pass selection card
+  const renderPassCard = (pass: typeof REGISTRATION_PASSES[0], memberIndex: number, isSelected: boolean, selectedTier?: PassTier) => {
+    const Icon = pass.icon
+    const member = members[memberIndex]
+    
+    return (
+      <Card 
+        key={pass.id}
+        className={`relative overflow-hidden transition-all duration-300 cursor-pointer transform hover:scale-105 h-full ${
+          isSelected 
+            ? `ring-2 ring-white ring-opacity-60 ${pass.glow} shadow-2xl` 
+            : 'hover:shadow-xl opacity-80 hover:opacity-100'
+        }`}
+        onClick={() => updateMember(memberIndex, 'passType', pass.id)}
+      >
+        <div className={`${pass.bgColor} ${pass.textColor} h-full flex flex-col`}>
+          <div className="p-6 flex-1">
+            <div className="absolute top-2 right-2">
+              <Icon className="w-8 h-8 opacity-30" />
             </div>
-          ) : needsProfileCompletion ? (
-            <div className="py-16">
-              <ProfileCompletion
-                userId={user?.id || ''}
-                email={user?.email || ''}
-                name={user?.name || ''}
-                onComplete={handleProfileComplete}
-              />
-            </div>
-          ) : (
-            <div className="space-y-8">
-              {/* Registration Status Check */}
-              <RegistrationStatus
-                userEmail={user?.email || ''}
-                onStatusChecked={setCanRegister}
-              />
-              
-              {/* Registration Form - Only show if user can register */}
-              {canRegister && (
-                <div>
-                  {/* Existing registration form content */}
-                  {/* Step Indicator */}
-                  <div className="flex justify-center mb-8">
-                    <div className="flex items-center space-x-4">
-                      <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
-                        currentStep >= 1 ? 'bg-cyan-500 border-cyan-500 text-white' : 'border-gray-400 text-gray-400'
-                      }`}>
-                        1
-                      </div>
-                      <div className={`w-16 h-0.5 ${currentStep >= 2 ? 'bg-cyan-500' : 'bg-gray-400'}`} />
-                      <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
-                        currentStep >= 2 ? 'bg-cyan-500 border-cyan-500 text-white' : 'border-gray-400 text-gray-400'
-                      }`}>
-                        2
-                      </div>
-                      <div className={`w-16 h-0.5 ${currentStep >= 3 ? 'bg-cyan-500' : 'bg-gray-400'}`} />
-                      <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
-                        currentStep >= 3 ? 'bg-cyan-500 border-cyan-500 text-white' : 'border-gray-400 text-gray-400'
-                      }`}>
-                        3
+            {isSelected && (
+              <div className="absolute top-2 left-2">
+                <CheckCircle className="w-6 h-6 text-white" />
+              </div>
+            )}
+            <CardHeader className="p-0 mb-4">
+              <CardTitle className="text-xl font-bold mb-2">{pass.name}</CardTitle>
+              {pass.tiers ? (
+                <div className="space-y-2 mb-4">
+                  {pass.tiers.map((tier) => (
+                    <div 
+                      key={tier.id}
+                      className={`p-3 rounded-lg border border-white/20 cursor-pointer transition-all ${
+                        selectedTier === tier.id ? 'bg-white/20' : 'hover:bg-white/10'
+                      }`}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        updateMember(memberIndex, 'passType', pass.id)
+                        updateMember(memberIndex, 'passTier', tier.id)
+                      }}
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold">{tier.name}</span>
+                        <span className="text-xl font-bold">₹{tier.price}</span>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Step Labels */}
-                  <div className="flex justify-center mb-12">
-                    <div className="flex items-center justify-between w-80">
-                      <span className={`text-sm ${currentStep >= 1 ? 'text-cyan-400' : 'text-gray-400'}`}>
-                        Registration
-                      </span>
-                      <span className={`text-sm ${currentStep >= 2 ? 'text-cyan-400' : 'text-gray-400'}`}>
-                        Events
-                      </span>
-                      <span className={`text-sm ${currentStep >= 3 ? 'text-cyan-400' : 'text-gray-400'}`}>
-                        Payment
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Step 1: Registration & Tier Selection */}
-                  {currentStep === 1 && (
-                    <div className="space-y-8">
-                      {/* Tier Selection Instructions */}
-                      <div className="text-center mb-6">
-                        <h3 className="text-xl font-bold text-white mb-2">Choose Your Registration Tier</h3>
-                        <p className="text-gray-300">
-                          Click on any one of the below tiers to select your registration plan
-                        </p>
-                      </div>
-
-                      {/* Registration Tiers */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                        {REGISTRATION_TIERS.map((tier) => (
-                          <div
-                            key={tier.id}
-                            className={`${tier.bgColor} rounded-2xl p-6 cursor-pointer transition-all duration-300 transform hover:scale-105 border-2 ${
-                              selectedTier?.id === tier.id
-                                ? 'border-white/70 shadow-2xl scale-105'
-                                : 'border-white/30 hover:border-white/50'
-                            } min-h-[400px] flex flex-col`}
-                            onClick={() => handleTierSelect(tier)}
-                          >
-                            <div className="flex justify-center mb-4">
-                              {getIcon(tier.icon || 'star')}
-                            </div>
-                            
-                            <div className="text-center mb-4">
-                              <h3 className="text-2xl font-bold text-white mb-2">{tier.name}</h3>
-                              <p className="text-3xl font-black text-white">₹{tier.price}</p>
-                            </div>
-                            
-                            <p className="text-white/90 text-sm text-center mb-6 leading-relaxed">
-                              {tier.description}
-                            </p>
-                            
-                            <div className="flex-grow">
-                              <div className="text-white font-semibold mb-3 text-center underline">Amenities:</div>
-                              <div className="space-y-2">
-                                {tier.features.map((feature: string, index: number) => (
-                                  <div key={index} className="flex items-start space-x-2">
-                                    <div className="w-1.5 h-1.5 bg-white rounded-full flex-shrink-0 mt-2"></div>
-                                    <span className="text-white text-sm">{feature}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                            
-                            {selectedTier?.id === tier.id && (
-                              <div className="mt-4 text-center">
-                                <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full border border-white/30">
-                                  <span className="text-white text-sm font-bold">SELECTED</span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Personal Information Form */}
-                      <div className="bg-slate-800/40 backdrop-blur-sm rounded-2xl p-8 border-2 border-cyan-400/30">
-                        <h3 className="text-2xl font-bold text-white mb-4 text-center">Personal Information</h3>
-                        
-                        {/* Info Note */}
-                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 mb-6">
-                          <div className="flex items-start space-x-3">
-                            <div className="flex-shrink-0">
-                              <svg className="w-5 h-5 text-blue-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                              </svg>
-                            </div>
-                            <div className="text-sm">
-                              <p className="text-blue-200 font-medium">Profile Information</p>
-                              <p className="text-blue-300 mt-1">
-                                Personal details are pulled from your profile. To update them, go to 
-                                <Link href="/profile" className="text-blue-400 hover:text-blue-300 underline mx-1">
-                                  My Account → Settings
-                                </Link>
-                                first.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div>
-                            <div className="flex items-center mb-2">
-                              <Users className="w-5 h-5 text-gray-400 mr-2" />
-                              <Label htmlFor="name" className="text-gray-300 font-medium">
-                                Full Name *
-                                <span className="text-xs text-gray-500 ml-1">(From Profile)</span>
-                              </Label>
-                            </div>
-                            <Input
-                              id="name"
-                              name="name"
-                              value={formData.name}
-                              disabled
-                              placeholder={profileLoading ? "Loading..." : "Enter your full name in profile settings"}
-                              className="bg-slate-800/80 border-slate-600 text-gray-300 placeholder-gray-500 h-12 rounded-lg cursor-not-allowed"
-                            />
-                          </div>
-                          <div>
-                            <div className="flex items-center mb-2">
-                              <Mail className="w-5 h-5 text-gray-400 mr-2" />
-                              <Label htmlFor="email" className="text-gray-300 font-medium">
-                                Email Address *
-                                <span className="text-xs text-gray-500 ml-1">(From Account)</span>
-                              </Label>
-                            </div>
-                            <Input
-                              id="email"
-                              name="email"
-                              type="email"
-                              value={formData.email}
-                              disabled
-                              className="bg-slate-800/80 border-slate-600 text-gray-300 h-12 rounded-lg cursor-not-allowed"
-                            />
-                          </div>
-                          <div>
-                            <div className="flex items-center mb-2">
-                              <Phone className="w-5 h-5 text-gray-400 mr-2" />
-                              <Label htmlFor="phone" className="text-gray-300 font-medium">
-                                Phone Number *
-                                <span className="text-xs text-gray-500 ml-1">(From Profile)</span>
-                              </Label>
-                            </div>
-                            <Input
-                              id="phone"
-                              name="phone"
-                              value={formData.phone}
-                              disabled
-                              placeholder={profileLoading ? "Loading..." : "Enter your phone in profile settings"}
-                              className="bg-slate-800/80 border-slate-600 text-gray-300 placeholder-gray-500 h-12 rounded-lg cursor-not-allowed"
-                            />
-                          </div>
-                          <div>
-                            <div className="flex items-center mb-2">
-                              <MapPin className="w-5 h-5 text-gray-400 mr-2" />
-                              <Label htmlFor="college" className="text-gray-300 font-medium">
-                                College/Institution *
-                                <span className="text-xs text-gray-500 ml-1">(From Profile)</span>
-                              </Label>
-                            </div>
-                            <Input
-                              id="college"
-                              name="college"
-                              value={formData.college}
-                              disabled
-                              placeholder={profileLoading ? "Loading..." : "Enter your college in profile settings"}
-                              className="bg-slate-800/80 border-slate-600 text-gray-300 placeholder-gray-500 h-12 rounded-lg cursor-not-allowed"
-                            />
-                          </div>
-                          <div>
-                            <div className="flex items-center mb-2">
-                              <Calendar className="w-5 h-5 text-gray-400 mr-2" />
-                              <Label htmlFor="year" className="text-gray-300 font-medium">
-                                Year of Study *
-                                <span className="text-xs text-gray-500 ml-1">(From Profile)</span>
-                              </Label>
-                            </div>
-                            <Input
-                              id="year"
-                              name="year"
-                              value={formData.year}
-                              disabled
-                              placeholder={profileLoading ? "Loading..." : "Enter your year in profile settings"}
-                              className="bg-slate-800/80 border-slate-600 text-gray-300 placeholder-gray-500 h-12 rounded-lg cursor-not-allowed"
-                            />
-                          </div>
-                          <div>
-                            <div className="flex items-center mb-2">
-                              <Zap className="w-5 h-5 text-gray-400 mr-2" />
-                              <Label htmlFor="branch" className="text-gray-300 font-medium">
-                                Branch/Department *
-                                <span className="text-xs text-gray-500 ml-1">(From Profile)</span>
-                              </Label>
-                            </div>
-                            <Input
-                              id="branch"
-                              name="branch"
-                              value={formData.branch}
-                              disabled
-                              placeholder={profileLoading ? "Loading..." : "Enter your branch in profile settings"}
-                              className="bg-slate-800/80 border-slate-600 text-gray-300 placeholder-gray-500 h-12 rounded-lg cursor-not-allowed"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex justify-end mt-8">
-                          <Button
-                            type="button"
-                            onClick={handleNextStep}
-                            className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold py-3 px-8 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl"
-                          >
-                            Next: Select Events
-                            <ArrowRight className="ml-2 h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 2: Event Selection */}
-                  {currentStep === 2 && (
-                    <div className="space-y-8">
-                      <div className="bg-slate-800/40 backdrop-blur-sm rounded-2xl p-8 border-2 border-cyan-400/30">
-                        <h3 className="text-2xl font-bold text-white mb-6 text-center">Select Events (Optional)</h3>
-                        <p className="text-gray-300 text-center mb-8">
-                          Your {selectedTier?.name} pass includes access to most events. Select additional events you want to specifically register for.
-                        </p>
-
-                        {eventsLoading && (
-                          <div className="text-center py-8">
-                            <Loader2 className="mx-auto h-8 w-8 animate-spin text-cyan-400" />
-                            <p className="text-gray-400 mt-2">Loading events...</p>
-                          </div>
-                        )}
-
-                        <div className="space-y-6">
-                          {['Culturals', 'Sports', 'Fine Arts', 'Literary'].map((category) => {
-                            const categoryEvents = events.filter(event => event.category === category)
-                            // Fixed mapping to match state object keys
-                            const categoryKey = (() => {
-                              switch(category) {
-                                case 'Culturals': return 'cultural'
-                                case 'Sports': return 'sports'
-                                case 'Fine Arts': return 'fineArts'
-                                case 'Literary': return 'literary'
-                                default: return 'cultural'
-                              }
-                            })() as keyof typeof selectedEventsByCategory
-                            
-                            return (
-                              <div key={category} className="border border-gray-600 rounded-lg p-6">
-                                <h4 className="text-xl font-bold text-white mb-4">{category}</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                  {categoryEvents.map((event) => (
-                                    <div
-                                      key={event.id}
-                                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-300 ${
-                                        selectedEventsByCategory[categoryKey].has(event.name)
-                                          ? 'border-cyan-400 bg-cyan-400/10'
-                                          : 'border-gray-600 hover:border-gray-500'
-                                      }`}
-                                      onClick={() => handleEventSelection(categoryKey, event.name)}
-                                    >
-                                      <h5 className="font-semibold text-white mb-2">{event.name}</h5>
-                                      <p className="text-gray-400 text-sm mb-2">{event.description}</p>
-                                      {event.price > 0 && (
-                                        <p className="text-cyan-400 font-bold">₹{event.price}</p>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-
-                        <div className="flex justify-between mt-8">
-                          <Button
-                            type="button"
-                            onClick={handlePrevStep}
-                            variant="outline"
-                            className="border-gray-600 text-black hover:bg-gray-700"
-                          >
-                            <ArrowLeft className="mr-2 h-4 w-4" />
-                            Back
-                          </Button>
-                          <Button
-                            type="button"
-                            onClick={handleNextStep}
-                            className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold py-3 px-8 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl"
-                          >
-                            Next: Payment
-                            <ArrowRight className="ml-2 h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 3: Payment */}
-                  {currentStep === 3 && (
-                    <div className="space-y-8">
-                      {/* Registration Summary */}
-                      <div className="bg-slate-800/40 backdrop-blur-sm rounded-2xl p-8 border-2 border-cyan-400/30 mb-8 max-w-4xl mx-auto">
-                        <h3 className="text-2xl font-bold text-white mb-6 text-center">Registration Summary</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                          <div>
-                            <h4 className="text-lg font-semibold text-white mb-4">Personal Details</h4>
-                            <div className="space-y-2 text-gray-300">
-                              <p><span className="font-medium">Name:</span> {formData.name}</p>
-                              <p><span className="font-medium">Email:</span> {formData.email}</p>
-                              <p><span className="font-medium">Phone:</span> {formData.phone}</p>
-                              <p><span className="font-medium">College:</span> {formData.college}</p>
-                              <p><span className="font-medium">Year:</span> {formData.year}</p>
-                              <p><span className="font-medium">Branch:</span> {formData.branch}</p>
-                            </div>
-                          </div>
-                          <div>
-                            <h4 className="text-lg font-semibold text-white mb-4">Registration Details</h4>
-                            <div className="space-y-2 text-gray-300">
-                              <p><span className="font-medium">Tier:</span> {selectedTier?.name}</p>
-                              <p><span className="font-medium">Tier Price:</span> ₹{selectedTier?.price}</p>
-                              {Object.values(selectedEventsByCategory).some(set => set.size > 0) && (
-                                <p><span className="font-medium">Events Price:</span> ₹{calculateTotalAmount() - (selectedTier?.price || 0)}</p>
-                              )}
-                              <p className="text-lg font-bold text-cyan-400"><span className="font-medium">Total Amount:</span> ₹{calculateTotalAmount()}</p>
-                              <div className="flex items-center space-x-2">
-                                <span className="font-medium">Order ID:</span>
-                                <code className="bg-slate-700 px-2 py-1 rounded text-xs text-cyan-400">{orderId}</code>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={handleCopyOrderId}
-                                  disabled={copyingOrderId}
-                                  className="h-8 w-8 p-0 hover:bg-slate-700"
-                                >
-                                  <Copy className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {Object.values(selectedEventsByCategory).some(set => set.size > 0) && (
-                          <div className="mt-6">
-                            <h4 className="text-lg font-semibold text-white mb-4">Selected Events</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {Object.entries(selectedEventsByCategory).map(([category, eventSet]) => {
-                                if (eventSet.size === 0) return null
-                                return (
-                                  <div key={category}>
-                                    <h5 className="font-medium text-cyan-400 mb-2 capitalize">
-                                      {category.replace('fineArts', 'Fine Arts')}
-                                    </h5>
-                                    <ul className="space-y-1 text-gray-300 text-sm">
-                                      {Array.from(eventSet).map(eventName => (
-                                        <li key={eventName}>• {eventName}</li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Payment Component */}
-                      <PaymentComponent
-                        amount={calculateTotalAmount()}
-                        orderId={orderId}
-                        description={`SPANDAN 2025 ${selectedTier?.name} Registration`}
-                        onPaymentComplete={handlePaymentComplete}
-                        isLoading={isSubmitting}
-                      />
-
-                      <div className="flex justify-center mt-8">
-                        <Button
-                          type="button"
-                          onClick={handlePrevStep}
-                          variant="outline"
-                          className="border-gray-600 text-black hover:bg-gray-700 mr-4"
-                          disabled={isSubmitting}
-                        >
-                          <ArrowLeft className="mr-2 h-4 w-4" />
-                          Back
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+                  ))}
+                </div>
+              ) : (
+                <div className="text-3xl font-bold mb-4">₹{pass.price}</div>
+              )}
+              <p className="text-sm opacity-90 mb-2">{pass.description}</p>
+              <p className="text-xs opacity-75 italic">{pass.details}</p>
+            </CardHeader>
+          </div>
+          
+          <div className="p-6 pt-0">
+            <CardContent className="p-0">
+              <ul className="space-y-2 mb-4">
+                {pass.features.map((feature, index) => (
+                  <li key={index} className="flex items-start text-sm">
+                    <CheckCircle className="w-4 h-4 mr-2 mt-0.5 opacity-80 flex-shrink-0" />
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+              {pass.id === 'Nexus Forum' && (
+                <div className="p-3 bg-white/10 rounded-lg">
+                  <a 
+                    href="#" 
+                    className="text-sm underline flex items-center hover:text-white transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      toast.info('Please upload the brochure PDF file to enable this link')
+                    }}
+                  >
+                    <ExternalLink className="w-4 h-4 mr-1 flex-shrink-0" />
+                    View detailed amenities brochure
+                  </a>
                 </div>
               )}
+            </CardContent>
+          </div>
+        </div>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <Navigation />
+      
+      <div className="container mx-auto px-4 pt-32 pb-8">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="text-center mb-20">
+            <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent mb-6 pb-2">
+              Register for Spandan 2025
+            </h1>
+            <p className="text-xl text-gray-300 mb-12">
+              Choose your tier or pass and join the ultimate college fest experience
+            </p>
+            
+            {/* Step indicator */}
+            <div className="flex justify-center items-center space-x-4 mb-8">
+              {[1, 2, 3].map((step) => (
+                <div key={step} className="flex items-center">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
+                    currentStep >= step 
+                      ? 'bg-purple-600 text-white' 
+                      : 'bg-gray-700 text-gray-400'
+                  }`}>
+                    {step}
+                  </div>
+                  {step < 3 && (
+                    <div className={`w-16 h-1 ${
+                      currentStep > step ? 'bg-purple-600' : 'bg-gray-700'
+                    }`} />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Step content */}
+          {currentStep === 1 && (
+            <div className="space-y-8">
+              {members.map((member, index) => (
+                <Card key={index} className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
+                  <CardHeader>
+                    <div className="flex justify-between items-center">
+                      <CardTitle className="text-white">
+                        Member {index + 1} {index === 0 && '(Group Leader)'}
+                      </CardTitle>
+                      {members.length > 1 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeMember(index)}
+                          className="text-red-400 border-red-400 hover:bg-red-400 hover:text-white"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Personal Information */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor={`name-${index}`} className="text-gray-300">Name *</Label>
+                        <div className="relative">
+                          <Input
+                            id={`name-${index}`}
+                            value={member.name}
+                            onChange={(e) => updateMember(index, 'name', e.target.value)}
+                            className={`bg-slate-700 border-slate-600 text-white ${
+                              validationErrors[`member_${index}_name`] ? 'border-red-500' : ''
+                            }`}
+                            placeholder="Enter full name"
+                          />
+                          {isValidating[`${index}-name`] && (
+                            <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+                          )}
+                        </div>
+                        {validationErrors[`member_${index}_name`] && (
+                          <p className="text-red-400 text-sm mt-1">{validationErrors[`member_${index}_name`]}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label htmlFor={`email-${index}`} className="text-gray-300">Email *</Label>
+                        <div className="relative">
+                          <Input
+                            id={`email-${index}`}
+                            type="email"
+                            value={member.email}
+                            onChange={(e) => updateMember(index, 'email', e.target.value)}
+                            className={`bg-slate-700 border-slate-600 text-white ${
+                              validationErrors[`member_${index}_email`] ? 'border-red-500' : ''
+                            }`}
+                            placeholder="Enter email address"
+                          />
+                          {isValidating[`${index}-email`] && (
+                            <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+                          )}
+                        </div>
+                        {validationErrors[`member_${index}_email`] && (
+                          <p className="text-red-400 text-sm mt-1">{validationErrors[`member_${index}_email`]}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label htmlFor={`college-${index}`} className="text-gray-300">College *</Label>
+                        <Input
+                          id={`college-${index}`}
+                          value={member.college}
+                          onChange={(e) => updateMember(index, 'college', e.target.value)}
+                          className={`bg-slate-700 border-slate-600 text-white ${
+                            validationErrors[`member_${index}_college`] ? 'border-red-500' : ''
+                          }`}
+                          placeholder="Enter college name"
+                        />
+                        {validationErrors[`member_${index}_college`] && (
+                          <p className="text-red-400 text-sm mt-1">{validationErrors[`member_${index}_college`]}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label htmlFor={`phone-${index}`} className="text-gray-300">Phone *</Label>
+                        <div className="relative">
+                          <Input
+                            id={`phone-${index}`}
+                            value={member.phone}
+                            onChange={(e) => updateMember(index, 'phone', e.target.value)}
+                            className={`bg-slate-700 border-slate-600 text-white ${
+                              validationErrors[`member_${index}_phone`] ? 'border-red-500' : ''
+                            }`}
+                            placeholder="Enter phone number"
+                          />
+                          {isValidating[`${index}-phone`] && (
+                            <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+                          )}
+                        </div>
+                        {validationErrors[`member_${index}_phone`] && (
+                          <p className="text-red-400 text-sm mt-1">{validationErrors[`member_${index}_phone`]}</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label htmlFor={`location-${index}`} className="text-gray-300">College Location</Label>
+                        <Input
+                          id={`location-${index}`}
+                          value={member.collegeLocation}
+                          onChange={(e) => updateMember(index, 'collegeLocation', e.target.value)}
+                          className="bg-slate-700 border-slate-600 text-white"
+                          placeholder="Enter college location"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Selection Type Toggle */}
+                    <div className="space-y-6">
+                      <Label className="text-gray-300">Choose Your Access Type *</Label>
+                      <Tabs 
+                        value={member.selectionType} 
+                        onValueChange={(value) => updateMember(index, 'selectionType', value as SelectionType)}
+                        className="w-full"
+                      >
+                        <TabsList className="grid w-full grid-cols-2 bg-slate-700 mb-8">
+                          <TabsTrigger value="tier" className="data-[state=active]:bg-purple-600">
+                            <Trophy className="w-4 h-4 mr-2" />
+                            Delegate Tiers
+                          </TabsTrigger>
+                          <TabsTrigger value="pass" className="data-[state=active]:bg-purple-600">
+                            <Ticket className="w-4 h-4 mr-2" />
+                            Event Passes
+                          </TabsTrigger>
+                        </TabsList>
+                        
+                        <TabsContent value="tier" className="space-y-6 mt-8">
+                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+                            {REGISTRATION_TIERS.map((tier) => 
+                              renderTierCard(tier, index, member.selectionType === 'tier' && member.tier === tier.id)
+                            )}
+                          </div>
+                        </TabsContent>
+                        
+                        <TabsContent value="pass" className="space-y-6 mt-8">
+                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+                            {REGISTRATION_PASSES.map((pass) => 
+                              renderPassCard(
+                                pass, 
+                                index, 
+                                member.selectionType === 'pass' && member.passType === pass.id,
+                                member.passTier
+                              )
+                            )}
+                          </div>
+                        </TabsContent>
+                      </Tabs>
+                    </div>
+
+                    {/* Selection Summary */}
+                    <div className="mt-4 p-4 bg-slate-700/50 rounded-lg">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-300">
+                          {member.name || `Member ${index + 1}`} - {EnhancedPricingService.getMemberSelectionDisplay(member)}
+                        </span>
+                        <span className="text-2xl font-bold text-purple-400">
+                          ₹{EnhancedPricingService.calculateMemberAmount(member)}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+
+              {/* Add Member Button */}
+              {members.length < 12 && (
+                <Card className="bg-slate-800/30 border-dashed border-slate-600 border-2">
+                  <CardContent className="flex items-center justify-center py-12">
+                    <Button
+                      onClick={addMember}
+                      variant="outline"
+                      className="border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Member ({members.length}/12)
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Total and Next Button */}
+              <Card className="bg-gradient-to-r from-purple-600 to-pink-600 border-none">
+                <CardContent className="p-6">
+                  <div className="flex justify-between items-center text-white">
+                    <div>
+                      <h3 className="text-2xl font-bold">Total Amount</h3>
+                      <p className="opacity-90">{members.length} member{members.length !== 1 ? 's' : ''}</p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-4xl font-bold">₹{totalAmount}</div>
+                      <Button
+                        onClick={handleContinueToPayment}
+                        className="mt-2 bg-white text-purple-600 hover:bg-gray-100"
+                        disabled={
+                          isCheckingDuplicates || 
+                          members.some(m => !m.name || !m.email || !m.college || !m.phone) ||
+                          Object.values(validationErrors).some(error => error.trim() !== '')
+                        }
+                      >
+                        {isCheckingDuplicates ? 'Validating...' : 'Continue to Payment'}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
 
-        </div>
-      </main>
+          {/* Payment Step */}
+          {currentStep === 2 && (
+            <div className="space-y-8">
+              <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle className="text-white text-2xl">Payment Information</CardTitle>
+                  <p className="text-gray-300">Complete your payment to confirm registration</p>
+                </CardHeader>
+                <CardContent className="space-y-8">
+                  {/* Payment Instructions */}
+                  <div className="bg-blue-900/30 border border-blue-600/30 p-6 rounded-lg">
+                    <div className="flex items-start space-x-3">
+                      <Info className="w-6 h-6 text-blue-400 flex-shrink-0 mt-0.5" />
+                      <div className="space-y-3">
+                        <h4 className="text-lg font-semibold text-blue-300">Payment Instructions</h4>
+                        <ol className="text-sm text-gray-300 space-y-2 list-decimal list-inside">
+                          <li>Scan the QR code with any UPI app or use the UPI ID provided below</li>
+                          <li>Enter the exact amount: <span className="font-bold text-green-400">₹{totalAmount}</span></li>
+                          <li>Complete the payment and note down the transaction ID</li>
+                          <li>Enter the transaction ID in the field below</li>
+                          <li>Upload a screenshot of the payment confirmation</li>
+                          <li>Click &ldquo;Review &amp; Submit&rdquo; to complete your registration</li>
+                        </ol>
+                      </div>
+                    </div>
+                  </div>
 
-      <Footer ctaText="YOUR HERO JOURNEY STARTS HERE!" />
+                  {/* Payment Methods */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* QR Code Section */}
+                    <Card className="bg-slate-700/50 border-slate-600">
+                      <CardHeader>
+                        <CardTitle className="text-white flex items-center">
+                          <QrCode className="w-5 h-5 mr-2" />
+                          Scan QR Code
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex justify-center">
+                          <div className="bg-white p-4 rounded-lg">
+                            {qrCodeDataURL ? (
+                              <Image 
+                                src={qrCodeDataURL}
+                                alt={`UPI QR Code for payment of ₹${totalAmount}`}
+                                width={200}
+                                height={200}
+                                className="w-48 h-48"
+                              />
+                            ) : (
+                              <div className="w-48 h-48 flex items-center justify-center bg-gray-100 rounded-lg">
+                                <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-center space-y-2">
+                          <p className="text-sm text-gray-300">
+                            Scan with any UPI app
+                          </p>
+                          <p className="text-lg font-bold text-green-400">
+                            Amount: ₹{totalAmount}
+                          </p>
+                        </div>
+                        <div className="bg-slate-600/50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-300">
+                            <span className="font-semibold">Merchant:</span><br/>
+                            {PAYMENT_CONFIG.merchantName}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* UPI Details Section */}
+                    <Card className="bg-slate-700/50 border-slate-600">
+                      <CardHeader>
+                        <CardTitle className="text-white flex items-center">
+                          <Smartphone className="w-5 h-5 mr-2" />
+                          UPI Payment Details
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="space-y-3">
+                          <div>
+                            <Label className="text-gray-300 text-sm">Merchant Name</Label>
+                            <div className="bg-slate-600 p-3 rounded-lg mt-1">
+                              <p className="text-white font-medium text-sm break-words">
+                                {PAYMENT_CONFIG.merchantName}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <Label className="text-gray-300 text-sm">UPI ID</Label>
+                            <div className="flex items-center space-x-2 mt-1">
+                              <div className="bg-slate-600 px-3 py-2 rounded-lg flex-1">
+                                <code className="text-white font-mono text-sm">
+                                  {PAYMENT_CONFIG.upiId}
+                                </code>
+                              </div>
+                              <Button
+                                onClick={copyUpiId}
+                                variant="outline"
+                                size="sm"
+                                disabled={copying}
+                                className="border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white"
+                              >
+                                {copying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div>
+                            <Label className="text-gray-300 text-sm">Amount to Pay</Label>
+                            <div className="bg-green-900/30 border border-green-600/30 p-3 rounded-lg mt-1">
+                              <div className="text-2xl font-bold text-green-400">₹{totalAmount}</div>
+                              <p className="text-xs text-green-300">Enter this exact amount</p>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Transaction Details */}
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="transaction-id" className="text-gray-300 font-medium">
+                        Payment Transaction ID *
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="transaction-id"
+                          value={paymentTransactionId}
+                          onChange={(e) => setPaymentTransactionId(e.target.value)}
+                          className={`bg-slate-700 border-slate-600 text-white ${
+                            paymentValidationError ? 'border-red-500' : ''
+                          }`}
+                          placeholder="Enter UPI transaction ID (e.g., 123456789012)"
+                        />
+                        {isCheckingTransactionId && (
+                          <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+                        )}
+                      </div>
+                      {paymentValidationError && (
+                        <p className="text-red-400 text-sm mt-1">{paymentValidationError}</p>
+                      )}
+                      <p className="text-xs text-gray-400">
+                        You&apos;ll find this in your UPI app after successful payment
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="payment-screenshot" className="text-gray-300 font-medium">
+                        Payment Screenshot *
+                      </Label>
+                      <div className={`border-2 border-dashed rounded-lg p-6 text-center hover:border-slate-500 transition-colors ${
+                        paymentValidationError.includes('screenshot') ? 'border-red-500' : 'border-slate-600'
+                      }`}>
+                        <input
+                          id="payment-screenshot"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setPaymentScreenshot(e.target.files?.[0] || null)}
+                          className="hidden"
+                        />
+                        <Label
+                          htmlFor="payment-screenshot"
+                          className="cursor-pointer flex flex-col items-center space-y-3 text-gray-300 hover:text-white transition-colors"
+                        >
+                          <Upload className="w-8 h-8" />
+                          <div className="text-center">
+                            <span className="block font-medium">
+                              {paymentScreenshot ? paymentScreenshot.name : 'Click to upload payment screenshot'}
+                            </span>
+                            <span className="text-sm text-gray-400 block mt-1">
+                              PNG, JPG, JPEG (max 5MB)
+                            </span>
+                          </div>
+                        </Label>
+                      </div>
+                      {paymentValidationError && paymentValidationError.includes('screenshot') && (
+                        <p className="text-red-400 text-sm mt-1">{paymentValidationError}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Navigation Buttons */}
+                  <div className="flex justify-between pt-6 border-t border-slate-600">
+                    <Button
+                      onClick={() => setCurrentStep(1)}
+                      variant="outline"
+                      className="border-slate-600 text-gray-300 hover:bg-slate-700"
+                    >
+                      Back to Details
+                    </Button>
+                    <Button
+                      onClick={() => setCurrentStep(3)}
+                      className="bg-purple-600 hover:bg-purple-700"
+                      disabled={!paymentTransactionId || !paymentScreenshot || !!paymentValidationError || isCheckingTransactionId}
+                    >
+                      Review & Submit
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Review Step */}
+          {currentStep === 3 && (
+            <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-white text-2xl">Review & Confirm</CardTitle>
+                <p className="text-gray-300">Please review your registration details before submitting</p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Registration Summary */}
+                <div className="space-y-4">
+                  <h3 className="text-xl font-semibold text-white">Registration Summary</h3>
+                  {members.map((member, index) => (
+                    <div key={index} className="bg-slate-700/50 p-4 rounded-lg">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-semibold text-white">
+                            {member.name} {index === 0 && '(Group Leader)'}
+                          </h4>
+                          <p className="text-gray-300 text-sm">{member.email}</p>
+                          <p className="text-gray-300 text-sm">{member.college}</p>
+                          <p className="text-purple-400 font-medium">
+                            {EnhancedPricingService.getMemberSelectionDisplay(member)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-bold text-white">
+                            ₹{EnhancedPricingService.calculateMemberAmount(member)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Payment Summary */}
+                <div className="bg-slate-700/50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-white mb-2">Payment Details</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-300">Transaction ID:</span>
+                      <span className="text-white">{paymentTransactionId}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-300">Screenshot:</span>
+                      <span className="text-white">{paymentScreenshot?.name}</span>
+                    </div>
+                    <div className="flex justify-between text-lg font-bold pt-2 border-t border-slate-600">
+                      <span className="text-white">Total Amount:</span>
+                      <span className="text-purple-400">₹{totalAmount}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Terms and Submit */}
+                <div className="space-y-4">
+                  <div className="bg-yellow-900/20 border border-yellow-600/30 p-4 rounded-lg">
+                    <p className="text-yellow-300 text-sm">
+                      <strong>Important:</strong> Please ensure all details are correct before submitting. 
+                      Registration fees are non-refundable. You will receive a confirmation email after successful registration.
+                    </p>
+                  </div>
+                  
+                  <div className="flex justify-between pt-6">
+                    <Button
+                      onClick={() => setCurrentStep(2)}
+                      variant="outline"
+                      className="border-slate-600 text-gray-300 hover:bg-slate-700"
+                    >
+                      Back to Payment
+                    </Button>
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={isSubmitting}
+                      className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        'Complete Registration'
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+      
+      <Footer ctaText="JOIN THE COMIC CHRONICLES ADVENTURE!" />
     </div>
   )
 }
