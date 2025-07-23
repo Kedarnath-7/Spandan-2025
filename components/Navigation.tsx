@@ -3,9 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Calendar, Users, User, LogOut } from 'lucide-react';
-import { useAuth } from '@/lib/contexts/AuthContext';
-import { isAdminEmailSync } from '@/lib/config/admin';
+import { Calendar, Users, Menu, X } from 'lucide-react';
+import { useState } from 'react';
 
 interface NavigationProps {
   cartCount?: number;
@@ -13,17 +12,15 @@ interface NavigationProps {
 
 export default function Navigation({ cartCount = 0 }: NavigationProps) {
   const pathname = usePathname();
-  const { user, session, loading, signOut } = useAuth();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const isActive = (path: string) => {
     return pathname === path;
   };
 
-  const handleSignOut = async () => {
-    await signOut();
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
   };
-
-  const isAdmin = user?.email ? isAdminEmailSync(user.email) : false;
 
   return (
     <nav className="fixed top-4 left-4 right-4 z-50">
@@ -91,67 +88,105 @@ export default function Navigation({ cartCount = 0 }: NavigationProps) {
               <span className="md:hidden">Aug 25</span>
             </div>
 
-            {/* Authentication Status */}
-            {loading ? (
-              <div className="text-gray-300 bg-gray-800/50 px-3 py-1.5 rounded-full text-xs sm:text-sm">
-                Loading...
-              </div>
-            ) : session ? (
-              <div className="flex items-center space-x-1 sm:space-x-2">
-                {/* Register Button - moved to left of My Account */}
-                {pathname === '/register' && cartCount > 0 ? (
-                  <Link href="/payment">
-                    <Button className="bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 text-white rounded-full px-3 sm:px-6 py-1.5 sm:py-2 h-auto text-xs sm:text-sm">
-                      <span className="hidden sm:inline">Cart ({cartCount})</span>
-                      <span className="sm:hidden">({cartCount})</span>
-                    </Button>
-                  </Link>
+            {/* Register Button - Prominent Call to Action */}
+            <Link href="/register">
+              <Button className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white rounded-full px-4 sm:px-6 py-2 sm:py-2.5 h-auto text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300">
+                <Users className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Register Now</span>
+                <span className="sm:hidden">Register</span>
+              </Button>
+            </Link>
+
+            {/* Mobile Menu Toggle */}
+            <div className="lg:hidden">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleMobileMenu}
+                className="text-gray-300 hover:text-white bg-gray-800/50 p-2 rounded-full"
+              >
+                {isMobileMenuOpen ? (
+                  <X className="w-5 h-5" />
                 ) : (
-                  <Link href="/register">
-                    <Button className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white rounded-full px-3 sm:px-6 py-1.5 sm:py-2 h-auto text-xs sm:text-sm">
-                      Register
-                    </Button>
-                  </Link>
+                  <Menu className="w-5 h-5" />
                 )}
-                
-                {/* My Account Button - always goes to profile */}
-                <Link href="/profile">
-                  <Button variant="ghost" className="text-gray-300 hover:text-black bg-gray-800/50 px-2 sm:px-4 py-1.5 sm:py-2 h-auto rounded-full text-xs sm:text-sm">
-                    <User className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
-                    <span className="hidden sm:inline">My Account</span>
-                  </Button>
-                </Link>
-                
-                {/* Sign Out Button */}
-                <Button 
-                  variant="ghost" 
-                  onClick={handleSignOut}
-                  className="text-gray-300 hover:text-red-800 hover:bg-red-500/10 bg-gray-800/50 px-2 sm:px-4 py-1.5 sm:py-2 h-auto rounded-full text-xs sm:text-sm"
-                >
-                  <LogOut className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Sign Out</span>
-                </Button>
-              </div>
-            ) : (
-              /* Unauthenticated - Register first, then Log In/Sign Up */
-              <div className="flex items-center space-x-1 sm:space-x-2">
-                <Link href="/login?redirect=/register">
-                  <Button className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white rounded-full px-3 sm:px-6 py-1.5 sm:py-2 h-auto text-xs sm:text-sm">
-                    Register
-                  </Button>
-                </Link>
-                
-                <Link href="/login">
-                  <Button variant="ghost" className="text-gray-300 hover:text-black bg-gray-800/50 px-2 sm:px-4 py-1.5 sm:py-2 h-auto rounded-full text-xs sm:text-sm">
-                    <Users className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Log In / Sign Up</span>
-                    <span className="sm:hidden">Login</span>
-                  </Button>
-                </Link>
-              </div>
-            )}
+              </Button>
+            </div>
           </div>
         </div>
+
+        {/* Mobile Menu */}
+        {isMobileMenuOpen && (
+          <div className="lg:hidden absolute top-full left-4 right-4 mt-2 bg-black/90 backdrop-blur-md border border-white/10 rounded-2xl p-4 shadow-xl">
+            <div className="flex flex-col space-y-3">
+              <Link 
+                href="/" 
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                  isActive('/') 
+                    ? 'bg-cyan-500 text-white' 
+                    : 'text-gray-300 hover:text-white hover:bg-gray-800/50'
+                }`}
+              >
+                Home
+              </Link>
+              <Link 
+                href="/about"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                  isActive('/about') 
+                    ? 'bg-cyan-500 text-white' 
+                    : 'text-gray-300 hover:text-white hover:bg-gray-800/50'
+                }`}
+              >
+                About
+              </Link>
+              <Link 
+                href="/events"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                  isActive('/events') 
+                    ? 'bg-cyan-500 text-white' 
+                    : 'text-gray-300 hover:text-white hover:bg-gray-800/50'
+                }`}
+              >
+                Events
+              </Link>
+              <Link 
+                href="/contact"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                  isActive('/contact') 
+                    ? 'bg-cyan-500 text-white' 
+                    : 'text-gray-300 hover:text-white hover:bg-gray-800/50'
+                }`}
+              >
+                Contact
+              </Link>
+              
+              {/* Admin Link in Mobile Menu */}
+              <div className="border-t border-gray-700 pt-3 mt-3">
+                <Link 
+                  href="/admin"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block px-4 py-2 text-xs text-gray-400 hover:text-gray-300 transition-colors"
+                >
+                  Admin Access
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Admin Access Link (Desktop - Small Corner Link) */}
+      <div className="hidden lg:block fixed bottom-4 right-4 z-40">
+        <Link 
+          href="/admin"
+          className="text-xs text-gray-500 hover:text-gray-400 transition-colors bg-black/30 backdrop-blur-sm px-3 py-1 rounded-full border border-gray-700/50"
+        >
+          Admin
+        </Link>
       </div>
     </nav>
   );

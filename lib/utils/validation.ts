@@ -1,6 +1,32 @@
+// Enhanced validation utilities for registration form
+
+export interface ValidationResult {
+  isValid: boolean
+  errors: string[]
+}
+
+export interface FieldValidationResult {
+  isValid: boolean
+  error?: string
+}
+
 export function validateEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
+}
+
+// Enhanced email validation with detailed error messages
+export const validateEmailDetailed = (email: string): FieldValidationResult => {
+  if (!email.trim()) {
+    return { isValid: false, error: 'Email is required' }
+  }
+  
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(email)) {
+    return { isValid: false, error: 'Please enter a valid email address' }
+  }
+  
+  return { isValid: true }
 }
 
 export function validatePassword(password: string): { isValid: boolean; errors: string[] } {
@@ -34,12 +60,75 @@ export function validatePhone(phone: string): boolean {
   return phoneRegex.test(phone.replace(/\s+/g, ''));
 }
 
+// Enhanced phone validation with detailed error messages
+export const validatePhoneDetailed = (phone: string): FieldValidationResult => {
+  if (!phone.trim()) {
+    return { isValid: false, error: 'Phone number is required' }
+  }
+  
+  // Remove all non-digit characters
+  const cleanPhone = phone.replace(/\D/g, '')
+  
+  // Check if it's a valid Indian mobile number (10 digits starting with 6-9)
+  const phoneRegex = /^[6-9]\d{9}$/
+  if (!phoneRegex.test(cleanPhone)) {
+    return { isValid: false, error: 'Please enter a valid 10-digit mobile number (6-9 starting)' }
+  }
+  
+  return { isValid: true }
+}
+
 export function validateName(name: string): boolean {
   return name.trim().length >= 2 && /^[a-zA-Z\s]+$/.test(name.trim());
 }
 
+// Enhanced name validation with detailed error messages
+export const validateNameDetailed = (name: string): FieldValidationResult => {
+  if (!name.trim()) {
+    return { isValid: false, error: 'Name is required' }
+  }
+  
+  if (name.trim().length < 2) {
+    return { isValid: false, error: 'Name must be at least 2 characters long' }
+  }
+  
+  // Check for only letters, spaces, and common name characters
+  const nameRegex = /^[a-zA-Z\s.''-]+$/
+  if (!nameRegex.test(name.trim())) {
+    return { isValid: false, error: 'Name can only contain letters, spaces, and common punctuation' }
+  }
+  
+  return { isValid: true }
+}
+
 export function validateCollege(college: string): boolean {
   return college.trim().length >= 2;
+}
+
+// Enhanced college validation with detailed error messages
+export const validateCollegeDetailed = (college: string): FieldValidationResult => {
+  if (!college.trim()) {
+    return { isValid: false, error: 'College name is required' }
+  }
+  
+  if (college.trim().length < 3) {
+    return { isValid: false, error: 'College name must be at least 3 characters long' }
+  }
+  
+  return { isValid: true }
+}
+
+// College location validation
+export const validateCollegeLocation = (location: string): FieldValidationResult => {
+  if (!location.trim()) {
+    return { isValid: false, error: 'College location is required' }
+  }
+  
+  if (location.trim().length < 2) {
+    return { isValid: false, error: 'College location must be at least 2 characters long' }
+  }
+  
+  return { isValid: true }
 }
 
 export function validateTransactionId(transactionId: string): boolean {
@@ -181,3 +270,78 @@ export const validateEmail2 = validateEmail;
 export const validatePhone2 = validatePhone;
 export const validateFile2 = validateFile;
 export const validateTransactionId2 = validateTransactionId;
+
+// Enhanced member validation functions for registration
+export const validateRequiredFields = (member: any): ValidationResult => {
+  const errors: string[] = []
+  
+  const nameValidation = validateNameDetailed(member.name)
+  if (!nameValidation.isValid) errors.push(nameValidation.error!)
+  
+  const emailValidation = validateEmailDetailed(member.email)
+  if (!emailValidation.isValid) errors.push(emailValidation.error!)
+  
+  const collegeValidation = validateCollegeDetailed(member.college)
+  if (!collegeValidation.isValid) errors.push(collegeValidation.error!)
+  
+  const phoneValidation = validatePhoneDetailed(member.phone)
+  if (!phoneValidation.isValid) errors.push(phoneValidation.error!)
+  
+  const locationValidation = validateCollegeLocation(member.collegeLocation)
+  if (!locationValidation.isValid) errors.push(locationValidation.error!)
+  
+  // Check if member has selected a tier or pass
+  if (member.selectionType === 'tier' && !member.tier) {
+    errors.push('Please select a delegate tier')
+  }
+  
+  if (member.selectionType === 'pass' && !member.passType) {
+    errors.push('Please select an event pass')
+  }
+  
+  if (member.selectionType === 'pass' && member.passType === 'Nexus Forum' && !member.passTier) {
+    errors.push('Please select a tier for Nexus Forum pass')
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  }
+}
+
+// Validate all members in a group
+export const validateAllMembers = (members: any[]): ValidationResult => {
+  const allErrors: string[] = []
+  
+  members.forEach((member, index) => {
+    const memberValidation = validateRequiredFields(member)
+    if (!memberValidation.isValid) {
+      memberValidation.errors.forEach(error => {
+        allErrors.push(`Member ${index + 1}: ${error}`)
+      })
+    }
+  })
+  
+  return {
+    isValid: allErrors.length === 0,
+    errors: allErrors
+  }
+}
+
+// Enhanced transaction ID validation
+export const validateTransactionIdDetailed = (transactionId: string): FieldValidationResult => {
+  if (!transactionId.trim()) {
+    return { isValid: false, error: 'Transaction ID is required' }
+  }
+  
+  // Transaction IDs are typically 8-50 characters long and alphanumeric
+  if (transactionId.trim().length < 8) {
+    return { isValid: false, error: 'Transaction ID must be at least 8 characters long' }
+  }
+  
+  if (transactionId.trim().length > 50) {
+    return { isValid: false, error: 'Transaction ID cannot be more than 50 characters long' }
+  }
+  
+  return { isValid: true }
+}

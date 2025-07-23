@@ -1,11 +1,10 @@
-export interface User {
+// Admin user interface (simplified authentication)
+export interface AdminUser {
   id: string;
   email: string;
   name: string;
-  college: string;
-  phone: string;
-  year?: string;
-  branch?: string;
+  is_active: boolean;
+  last_login?: string;
   created_at: string;
   updated_at: string;
 }
@@ -15,8 +14,6 @@ export interface Event {
   name: string;
   description: string;
   category: 'Cultural' | 'Sports' | 'Fine Arts' | 'Literary' | 'Academic';
-  price: number;
-  max_participants?: number;
   info_points?: string[]; // Array of bullet points
   start_date?: string;
   end_date?: string;
@@ -26,83 +23,206 @@ export interface Event {
   updated_at: string;
 }
 
-export interface UnifiedRegistration {
+// Group registration interface (group-level data)
+export interface GroupRegistration {
   id: string;
+  group_id: string; // e.g., GRP-TIER-A1B2C3
   
-  // User information (stored directly)
-  user_email: string;
-  user_name: string;
-  user_phone: string;
-  user_college: string;
-  user_year?: string;
-  user_branch?: string;
-  
-  // Registration details
-  registration_tier: string;
+  // Group totals
   total_amount: number;
+  member_count: number;
   
-  // Payment information (stored directly)
+  // Payment information
   payment_transaction_id: string;
-  payment_screenshot: string; // From admin view (aliased from payment_screenshot_path)
-  payment_amount: number;
+  payment_screenshot_path: string;
   
   // Registration status and management
   status: 'pending' | 'approved' | 'rejected';
-  delegate_id?: string;
   
   // Admin review information
   reviewed_by?: string;
   reviewed_at?: string;
   rejection_reason?: string;
   
+  // Contact person (first member details)
+  contact_name: string;
+  contact_email: string;
+  contact_phone: string;
+  
   // Timestamps
   created_at: string;
   updated_at: string;
-  
-  // Selected events
-  selected_events?: Array<{
-    id: string;
-    name: string;
-    category: string;
-    price: number;
-  }>;
 }
 
+// Group member interface (individual member data)
+export interface GroupMember {
+  id: string;
+  group_id: string;
+  delegate_user_id: string; // e.g., USER-COPR-A1B2C3
+  
+  // Member personal information
+  name: string;
+  email: string;
+  college: string;
+  phone: string;
+  college_location?: string;
+  
+  // Tier selection (individual per member)
+  tier: 'Collectors Print' | 'Deluxe Edition' | 'Issue #1';
+  tier_amount: 375 | 650 | 850;
+  
+  // Order in group
+  member_order: number;
+  
+  // Timestamps
+  created_at: string;
+}
+
+// Combined view for admin dashboard
+export interface RegistrationView {
+  group_id: string;
+  delegate_user_id: string;
+  leader_name: string;
+  leader_email: string;
+  leader_phone: string;
+  college: string;
+  college_location?: string;
+  tier: string;
+  tier_amount: number;
+  members_count: number;
+  total_amount: number;
+  payment_transaction_id: string;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+  group_name: string;
+  review_status: string;
+  reviewed_at?: string;
+  reviewed_by?: string;
+  rejection_reason?: string;
+}
+
+// Registration tier interface
 export interface RegistrationTier {
   id: string;
   name: string;
   price: number;
   description: string;
   features: string[];
-  icon?: any;
-  bgColor?: string;
+  icon: string;
+  bgColor: string;
 }
 
-export interface CartItem {
-  event: Event;
-  quantity: number;
+// Form data interfaces for registration flow
+export interface RegistrationFormData {
+  registrationType: 'individual' | 'group';
+  members: MemberFormData[];
+  paymentTransactionId: string;
+  paymentScreenshot: File | null;
 }
 
+export interface MemberFormData {
+  name: string;
+  email: string;
+  college: string;
+  phone: string;
+  collegeLocation: string;
+  tier: 'Collectors Print' | 'Deluxe Edition' | 'Issue #1';
+}
+
+// Tier pricing constants
 export const TIER_PRICES = {
-  'Tier 1': 375,
-  'Tier 2': 650,
-  'Tier 3': 850
+  'Issue #1': 375,
+  'Deluxe Edition': 650,
+  'Collectors Print': 850,
 } as const;
 
-export const TIER_DESCRIPTIONS = {
-  'Tier 1': 'Basic Access - Entry to general events and competitions',
-  'Tier 2': 'Premium Access - Includes workshops, main stage events, and exclusive sessions',
-  'Tier 3': 'VIP Access - All events, VIP seating, exclusive networking, and special privileges'
+// Pass pricing constants
+export const PASS_PRICES = {
+  'Nexus Arena': 250,
+  'Nexus Spotlight': 250,
+  'Nexus Forum Standard': 250,
+  'Nexus Forum Premium': 750,
 } as const;
 
-export interface Payment {
+// Pass types
+export type PassType = 'Nexus Arena' | 'Nexus Spotlight' | 'Nexus Forum';
+export type PassTier = 'Standard' | 'Premium';
+export type SelectionType = 'tier' | 'pass';
+export type TierType = 'Collectors Print' | 'Deluxe Edition' | 'Issue #1';
+
+// Enhanced member form data (supports both tiers and passes)
+export interface EnhancedMemberFormData {
+  name: string;
+  email: string;
+  college: string;
+  phone: string;
+  collegeLocation: string;
+  selectionType: SelectionType;
+  
+  // Tier selection (mutually exclusive with pass)
+  tier?: TierType;
+  
+  // Pass selection (mutually exclusive with tier)
+  passType?: PassType;
+  passTier?: PassTier; // Only for Nexus Forum
+}
+
+// Enhanced registration form data
+export interface EnhancedRegistrationFormData {
+  registrationType: 'individual' | 'group';
+  members: EnhancedMemberFormData[];
+  paymentTransactionId: string;
+  paymentScreenshot: File | null;
+}
+
+// Enhanced group member (database record)
+export interface EnhancedGroupMember {
   id: string;
+  group_id: string;
   user_id: string;
-  type: string;
-  payment_screenshot: string;
-  transaction_id: string;
+  name: string;
+  email: string;
+  college: string;
+  phone: string;
+  college_location: string;
+  selection_type: SelectionType;
+  
+  // Tier fields
+  tier?: TierType;
+  delegate_user_id?: string;
+  
+  // Pass fields  
+  pass_type?: PassType;
+  pass_tier?: PassTier;
+  pass_id?: string;
+  
   amount: number;
+  member_order: number;
+  created_at: string;
+}
+
+// Enhanced registration view (for admin)
+export interface EnhancedRegistrationView {
+  group_id: string;
+  user_id: string;
+  name: string;
+  email: string;
+  college: string;
+  phone: string;
+  college_location: string;
+  selection_type: SelectionType;
+  tier?: TierType;
+  delegate_user_id?: string;
+  pass_type?: PassType;
+  pass_tier?: PassTier;
+  pass_id?: string;
+  amount: number;
+  total_amount: number;
+  payment_transaction_id: string;
   status: string;
   created_at: string;
-  updated_at: string;
+  reviewed_at?: string;
+  reviewed_by?: string;
+  rejection_reason?: string;
+  member_count: number;
 }

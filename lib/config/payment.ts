@@ -5,9 +5,10 @@
 
 export const PAYMENT_CONFIG = {
   // UPI Configuration
-  upiId: 'spandan2025@paytm', // Change this to your actual UPI ID
-  merchantName: 'SPANDAN 2025',
-  merchantCode: 'SPANDAN2025',
+  upiId: '9442172827@sbi', // Official JIPMER UPI ID
+  merchantName: 'DIRECTOR ACCOUNTS OFFICER JIPMER RECEIPTS',
+  merchantCode: 'JIPMER',
+  accountName: 'DIRECTOR ACCOUNTS OFFICER JIPMER RECEIPTS',
   
   // Payment Settings
   currency: 'INR',

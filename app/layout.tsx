@@ -2,7 +2,6 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { Toaster } from '@/components/ui/toaster';
-import { AuthProvider } from '@/lib/contexts/AuthContext';
 import { CartProvider } from '@/lib/contexts/CartContext';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -20,12 +19,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AuthProvider>
-          <CartProvider>
-            {children}
-            <Toaster />
-          </CartProvider>
-        </AuthProvider>
+        <CartProvider>
+          {children}
+          <Toaster />
+        </CartProvider>
         {/* Google Analytics placeholder */}
         <script
           async

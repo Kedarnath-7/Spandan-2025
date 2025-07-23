@@ -72,7 +72,7 @@ export default function LoginPage() {
           if (redirectTo) {
             window.location.href = redirectTo;
           } else {
-            window.location.href = '/';
+            window.location.href = '/profile';
           }
         }, 1000);
       }

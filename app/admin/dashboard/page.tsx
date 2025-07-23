@@ -1,456 +1,554 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/lib/supabase';
-import { isAdminEmailSync } from '@/lib/config/admin';
-import { useAuth } from '@/lib/contexts/AuthContext';
-import { UnifiedRegistrationService } from '@/lib/services/unifiedRegistrationAdmin';
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { toast } from 'sonner'
+import { AdminService } from '@/lib/services/adminService'
+import type { RegistrationView } from '@/lib/types'
 import { 
   Users, 
-  Calendar, 
+  Calendar,
   DollarSign, 
   TrendingUp, 
   LogOut, 
   Download,
   UserCheck,
+  UserX,
+  Search,
+  Filter,
+  RefreshCw,
+  Eye,
+  CheckCircle,
+  XCircle,
   FileText,
   Star,
   MapPin,
   Mail,
   Phone
-} from 'lucide-react';
-import Navigation from '@/components/Navigation';
-import Footer from '@/components/Footer';
+} from 'lucide-react'
+import Navigation from '@/components/Navigation'
+import Footer from '@/components/Footer'
 
 interface DashboardStats {
-  totalRegistrations: number;
-  totalRevenue: number;
-  pendingApprovals: number;
-  totalEvents: number;
-}
-
-interface Registration {
-  id: string;
-  user_name: string;
-  user_email: string;
-  registration_tier: string;
-  status: string;
-  created_at: string;
-  total_amount: number;
+  totalRegistrations: number
+  totalRevenue: number
+  pendingApprovals: number
+  approvedRegistrations: number
+  rejectedRegistrations: number
+  totalGroups: number
+  totalEvents: number
 }
 
 export default function AdminDashboard() {
-  const router = useRouter();
-  const { user, session, loading } = useAuth();
-  const { toast } = useToast();
+  const router = useRouter()
   const [stats, setStats] = useState<DashboardStats>({
     totalRegistrations: 0,
     totalRevenue: 0,
     pendingApprovals: 0,
-    totalEvents: 0
-  });
-  const [recentRegistrations, setRecentRegistrations] = useState<Registration[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+    approvedRegistrations: 0,
+    rejectedRegistrations: 0,
+    totalGroups: 0,
+    totalEvents: 4 // We have 4 sample events
+  })
+  const [recentRegistrations, setRecentRegistrations] = useState<RegistrationView[]>([])
+  const [allRegistrations, setAllRegistrations] = useState<RegistrationView[]>([])
+  const [loading, setLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all')
+  const [showAllRegistrations, setShowAllRegistrations] = useState(false)
 
-  // Check authentication and admin privileges
+  // Check admin authentication
   useEffect(() => {
-    if (!loading) {
-      if (!session || !user) {
-        toast({
-          title: 'Authentication Required',
-          description: 'Please login to access admin panel',
-          variant: 'destructive'
-        });
-        router.push('/login');
-        return;
-      }
-
-      // Check if user is admin
-      if (!user.isAdmin) {
-        toast({
-          title: 'Access Denied',
-          description: 'You do not have admin privileges',
-          variant: 'destructive'
-        });
-        router.push('/profile');
-        return;
-      }
+    const adminSession = localStorage.getItem('adminSession')
+    if (!adminSession) {
+      router.push('/admin')
+      return
     }
-  }, [loading, session, user, toast, router]);
 
-  useEffect(() => {
-    const loadDashboardData = async () => {
-      try {
-        setIsLoading(true);
-        
-        // Load real stats from database
-        const stats = await UnifiedRegistrationService.getRegistrationStats();
-        
-        // Get total events count
-        const { data: eventsData, error: eventsError } = await supabase
-          .from('events')
-          .select('id', { count: 'exact' });
-        
-        if (eventsError) {
-          console.error('Error fetching events count:', eventsError);
-        }
-        
+    const session = JSON.parse(adminSession)
+    const currentTime = Date.now()
+    const sessionDuration = 24 * 60 * 60 * 1000 // 24 hours
+
+    if (currentTime - session.loginTime > sessionDuration) {
+      localStorage.removeItem('adminSession')
+      toast.error('Session expired. Please login again.')
+      router.push('/admin')
+      return
+    }
+
+    loadDashboardData()
+  }, [router])
+
+  const loadDashboardData = async () => {
+    setLoading(true)
+    try {
+      const [statsResult, registrationsResult] = await Promise.all([
+        AdminService.getDashboardStats(),
+        AdminService.getAllRegistrations()
+      ])
+
+      if (statsResult.success && statsResult.data) {
         setStats({
-          totalRegistrations: stats.total,
-          totalRevenue: stats.approvedRevenue, // Show only approved revenue
-          pendingApprovals: stats.pending,
-          totalEvents: eventsData?.length || 0
-        });
-
-        // Load recent registrations from database
-        const registrations = await UnifiedRegistrationService.getAllUnifiedRegistrations();
-        
-        // Get the 5 most recent registrations
-        const recentRegs = registrations.slice(0, 5).map(reg => ({
-          id: reg.id,
-          user_name: reg.user_name,
-          user_email: reg.user_email,
-          registration_tier: reg.registration_tier,
-          status: reg.status,
-          created_at: reg.created_at,
-          total_amount: reg.total_amount
-        }));
-        
-        setRecentRegistrations(recentRegs);
-
-      } catch (error) {
-        console.error('Error loading dashboard data:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load dashboard data',
-          variant: 'destructive'
-        });
-      } finally {
-        setIsLoading(false);
+          ...statsResult.data,
+          totalEvents: 4 // We have 4 sample events
+        })
       }
-    };
 
-    loadDashboardData();
-  }, [toast]);
-
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      toast({
-        title: 'Success',
-        description: 'Logged out successfully'
-      });
-      // Use window.location for reliable navigation after logout
-      window.location.href = '/admin';
+      if (registrationsResult.success && registrationsResult.data) {
+        setAllRegistrations(registrationsResult.data)
+        // Show only the 5 most recent for the dashboard overview
+        setRecentRegistrations(registrationsResult.data.slice(0, 5))
+      }
     } catch (error) {
-      console.error('Error logging out:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to log out',
-        variant: 'destructive'
-      });
+      console.error('Error loading dashboard data:', error)
+      toast.error('Failed to load dashboard data')
+    } finally {
+      setLoading(false)
     }
-  };
-
-  const handleExportData = async () => {
-    try {
-      const registrations = await UnifiedRegistrationService.getAllUnifiedRegistrations();
-      
-      // Prepare CSV data
-      const csvData = registrations.map(reg => ({
-        'Registration ID': reg.id,
-        'User Name': reg.user_name,
-        'Email': reg.user_email,
-        'Phone': reg.user_phone,
-        'College': reg.user_college,
-        'Year': reg.user_year,
-        'Branch': reg.user_branch,
-        'Registration Tier': reg.registration_tier,
-        'Status': reg.status,
-        'Total Amount': reg.total_amount,
-        'Created At': new Date(reg.created_at).toLocaleDateString(),
-        'Events Count': reg.selected_events?.length || 0
-      }));
-      
-      // Convert to CSV
-      const csvContent = [
-        Object.keys(csvData[0]).join(','),
-        ...csvData.map(row => Object.values(row).join(','))
-      ].join('\n');
-      
-      // Download CSV
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `spandan_registrations_${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      toast({
-        title: 'Success',
-        description: 'Registration data exported successfully'
-      });
-    } catch (error) {
-      console.error('Error exporting data:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to export data',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'approved':
-        return <Badge className="bg-green-500 text-white">Approved</Badge>;
-      case 'pending':
-        return <Badge className="bg-yellow-500 text-white">Pending</Badge>;
-      case 'rejected':
-        return <Badge className="bg-red-500 text-white">Rejected</Badge>;
-      default:
-        return <Badge className="bg-gray-500 text-white">Unknown</Badge>;
-    }
-  };
-
-  const getTierBadge = (tier: string) => {
-    switch (tier) {
-      case 'Hero':
-        return <Badge className="bg-blue-500 text-white">Hero</Badge>;
-      case 'Hero Plus':
-        return <Badge className="bg-purple-500 text-white">Hero Plus</Badge>;
-      case 'Super Hero':
-        return <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white">Super Hero</Badge>;
-      default:
-        return <Badge className="bg-gray-500 text-white">{tier}</Badge>;
-    }
-  };
-
-  // Show loading while checking authentication
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#0A0F1A] text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
-          <p className="text-gray-300">Loading admin dashboard...</p>
-        </div>
-      </div>
-    );
   }
 
-  // Don't render if not authenticated or not admin (will redirect)
-  if (!session || !user || !user.isAdmin) {
-    return null;
+  const handleApproveRegistration = async (groupId: string) => {
+    try {
+      const result = await AdminService.approveRegistration(groupId)
+      if (result.success) {
+        toast.success('Registration approved successfully')
+        loadDashboardData()
+      } else {
+        toast.error(result.error || 'Failed to approve registration')
+      }
+    } catch (error) {
+      console.error('Error approving registration:', error)
+      toast.error('Failed to approve registration')
+    }
+  }
+
+  const handleRejectRegistration = async (groupId: string) => {
+    try {
+      const reason = prompt('Please provide a reason for rejection:')
+      if (!reason) return
+      
+      const result = await AdminService.rejectRegistration(groupId, reason)
+      if (result.success) {
+        toast.success('Registration rejected')
+        loadDashboardData()
+      } else {
+        toast.error(result.error || 'Failed to reject registration')
+      }
+    } catch (error) {
+      console.error('Error rejecting registration:', error)
+      toast.error('Failed to reject registration')
+    }
+  }
+
+  const handleExportData = async () => {
+    setIsLoading(true)
+    try {
+      const result = await AdminService.getAllRegistrations()
+      if (result.success && result.data) {
+        const csvContent = [
+          ['Group Name', 'Leader Name', 'Email', 'Phone', 'Tier', 'Total Amount', 'Status', 'Created At', 'Members Count'].join(','),
+          ...result.data.map(reg => [
+            `"${reg.group_name}"`,
+            `"${reg.leader_name}"`,
+            `"${reg.leader_email}"`,
+            `"${reg.leader_phone}"`,
+            `"${reg.tier}"`,
+            reg.total_amount,
+            `"${reg.status}"`,
+            `"${new Date(reg.created_at).toLocaleDateString()}"`,
+            reg.members_count
+          ].join(','))
+        ].join('\n')
+
+        const blob = new Blob([csvContent], { type: 'text/csv' })
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `registrations-${new Date().toISOString().split('T')[0]}.csv`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        window.URL.revokeObjectURL(url)
+        
+        toast.success('Data exported successfully')
+      }
+    } catch (error) {
+      console.error('Error exporting data:', error)
+      toast.error('Failed to export data')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('adminSession')
+    toast.success('Logged out successfully')
+    router.push('/admin')
+  }
+
+  const filteredRegistrations = (showAllRegistrations ? allRegistrations : recentRegistrations).filter(reg => {
+    const matchesSearch = reg.group_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         reg.leader_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         reg.leader_email.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const matchesStatus = statusFilter === 'all' || reg.status === statusFilter
+    
+    return matchesSearch && matchesStatus
+  })
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'approved': return 'default'
+      case 'rejected': return 'destructive'
+      case 'pending': return 'secondary'
+      default: return 'secondary'
+    }
+  }
+
+  const getTierBadgeColor = (tier: string) => {
+    switch (tier) {
+      case 'TIER_1': return 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+      case 'TIER_2': return 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+      case 'TIER_3': return 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-purple-400" />
+            <p className="text-white">Loading dashboard...</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0F1A] text-white relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* Background Elements */}
-      <div className="absolute inset-0 opacity-[0.03]">
-        <div className="absolute top-20 left-10 text-6xl font-bold text-white transform -rotate-12">ADMIN</div>
-        <div className="absolute top-40 right-20 text-4xl font-bold text-white transform rotate-12">DASH</div>
-        <div className="absolute bottom-40 left-20 w-16 h-16 border-4 border-white transform rotate-45"></div>
-        <div className="absolute bottom-20 right-10 w-12 h-12 border-4 border-white transform rotate-12"></div>
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl" />
+        <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-purple-500/5 to-blue-500/5 rounded-full blur-3xl" />
       </div>
 
-      {/* Navigation */}
       <Navigation />
-
-      {/* Main Content */}
-      <main className="relative z-10 pt-24 pb-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          
-          {/* Header */}
-          <div className="flex justify-between items-center mb-8">
+      
+      <div className="relative z-10 container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent mb-2">
                 Admin Dashboard
               </h1>
-              <p className="text-gray-300 mt-2">SPANDAN 2025 Management Portal</p>
+              <p className="text-slate-400">Manage group registrations and monitor event statistics</p>
             </div>
-            <div className="flex space-x-4">
-              <Button 
-                variant="outline" 
-                className=" bg-blue-600/20 border-blue-200/50 text-white hover:border-blue-300 hover:text-black"
+            <div className="flex gap-4">
+              <Button
                 onClick={handleExportData}
                 disabled={isLoading}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
               >
-                <Download className="w-4 h-4 mr-2" />
+                {isLoading ? (
+                  <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Download className="w-4 h-4 mr-2" />
+                )}
                 Export Data
+              </Button>
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                className="border-red-500/50 text-red-400 hover:bg-red-500/20"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
               </Button>
             </div>
           </div>
+        </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card className="bg-slate-800/80 border-2 border-slate-600">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-300">Total Registrations</CardTitle>
-                <Users className="h-4 w-4 text-cyan-400" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-white">
-                  {isLoading ? '...' : stats.totalRegistrations}
-                </div>
-                <p className="text-xs text-gray-400">All time registrations</p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-slate-800/80 border-2 border-slate-600">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-300">Total Revenue</CardTitle>
-                <DollarSign className="h-4 w-4 text-green-400" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-white">
-                  {isLoading ? '...' : `₹${stats.totalRevenue.toLocaleString()}`}
-                </div>
-                <p className="text-xs text-gray-400">From approved registrations</p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-slate-800/80 border-2 border-slate-600">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-300">Pending Approvals</CardTitle>
-                <UserCheck className="h-4 w-4 text-yellow-400" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-white">
-                  {isLoading ? '...' : stats.pendingApprovals}
-                </div>
-                <p className="text-xs text-gray-400">
-                  {stats.pendingApprovals > 0 ? 'Requires attention' : 'All caught up!'}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-slate-800/80 border-2 border-slate-600">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-300">Total Events</CardTitle>
-                <Calendar className="h-4 w-4 text-purple-400" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-white">
-                  {isLoading ? '...' : stats.totalEvents}
-                </div>
-                <p className="text-xs text-gray-400">Across all categories</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Recent Registrations */}
-          <Card className="bg-slate-800/80 border-2 border-slate-600">
-            <CardHeader>
-              <CardTitle className="text-xl font-bold text-cyan-400">Recent Registrations</CardTitle>
-              <CardDescription className="text-gray-400">
-                Latest participant registrations and their status
-              </CardDescription>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-6 mb-8">
+          <Card className="bg-slate-800/80 border-slate-700/50 backdrop-blur">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-slate-300">Total Groups</CardTitle>
+              <Users className="h-4 w-4 text-purple-400" />
             </CardHeader>
             <CardContent>
-              {isLoading ? (
-                <div className="text-center py-8 text-gray-400">Loading registrations...</div>
-              ) : recentRegistrations.length > 0 ? (
-                <div className="space-y-4">
-                  {recentRegistrations.map((registration) => (
-                    <div 
-                      key={registration.id} 
-                      className="flex items-center justify-between p-4 bg-slate-700/50 rounded-lg border border-slate-600"
-                    >
-                      <div className="flex items-center space-x-4">
-                        <div className="w-10 h-10 bg-cyan-500 rounded-full flex items-center justify-center">
-                          <Users className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                          <div className="font-medium text-white">{registration.user_name}</div>
-                          <div className="text-sm text-gray-400">{registration.user_email}</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        {getTierBadge(registration.registration_tier)}
-                        {getStatusBadge(registration.status)}
-                        <div className="text-right">
-                          <div className="font-medium text-white">₹{registration.total_amount}</div>
-                          <div className="text-xs text-gray-400">
-                            {new Date(registration.created_at).toLocaleDateString()}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  <div className="pt-4 border-t border-slate-600">
-                    <Link href="/admin/registrations">
-                      <Button variant="outline" className="w-full bg-slate-700/50 border-slate-600 text-white hover:bg-slate-600">
-                        View All Registrations →
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <div className="text-gray-400 mb-2">No registrations yet</div>
-                  <div className="text-sm text-gray-500">Registrations will appear here once users start signing up</div>
-                </div>
-              )}
+              <div className="text-2xl font-bold text-white">{stats.totalGroups}</div>
+              <p className="text-xs text-slate-500">Registered groups</p>
             </CardContent>
           </Card>
 
-          {/* Quick Actions */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-            <Card className="bg-slate-800/80 border-2 border-slate-600 hover:border-cyan-500 transition-colors cursor-pointer">
-              <CardHeader>
-                <Link href="/admin/registrations">
-                  <CardTitle className="text-lg font-bold text-cyan-400 flex items-center hover:text-cyan-300 transition-colors">
-                    <FileText className="w-5 h-5 mr-2" />
-                    Manage Registrations
-                  </CardTitle>
-                  <CardDescription className="text-gray-400">
-                    View, approve, or reject participant registrations
-                  </CardDescription>
-                </Link>
-              </CardHeader>
-            </Card>
+          <Card className="bg-slate-800/80 border-slate-700/50 backdrop-blur">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-slate-300">Total Events</CardTitle>
+              <Calendar className="h-4 w-4 text-blue-400" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-white">{stats.totalEvents}</div>
+              <p className="text-xs text-slate-500">Available events</p>
+            </CardContent>
+          </Card>
 
-            <Card className="bg-slate-800/80 border-2 border-slate-600 hover:border-purple-500 transition-colors cursor-pointer">
-              <CardHeader>
-                <Link href="/admin/events">
-                  <CardTitle className="text-lg font-bold text-purple-400 flex items-center hover:text-purple-300 transition-colors">
-                    <Calendar className="w-5 h-5 mr-2" />
-                    Event Management
-                  </CardTitle>
-                  <CardDescription className="text-gray-400">
-                    Create, edit, and manage SPANDAN 2025 events
-                  </CardDescription>
-                </Link>
-              </CardHeader>
-            </Card>
+          <Card className="bg-slate-800/80 border-slate-700/50 backdrop-blur">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-slate-300">Total Registrations</CardTitle>
+              <UserCheck className="h-4 w-4 text-green-400" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-white">{stats.totalRegistrations}</div>
+              <p className="text-xs text-slate-500">All registrations</p>
+            </CardContent>
+          </Card>
 
-            <Card className="bg-slate-800/80 border-2 border-slate-600 hover:border-green-500 transition-colors cursor-pointer">
-              <CardHeader>
-                <CardTitle className="text-lg font-bold text-green-400 flex items-center">
-                  <TrendingUp className="w-5 h-5 mr-2" />
-                  Analytics
-                </CardTitle>
-                <CardDescription className="text-gray-400">
-                  View detailed reports and registration analytics
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          </div>
+          <Card className="bg-slate-800/80 border-slate-700/50 backdrop-blur">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-slate-300">Total Revenue</CardTitle>
+              <DollarSign className="h-4 w-4 text-yellow-400" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-white">₹{stats.totalRevenue.toLocaleString()}</div>
+              <p className="text-xs text-slate-500">Registration fees</p>
+            </CardContent>
+          </Card>
 
+          <Card className="bg-slate-800/80 border-slate-700/50 backdrop-blur">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-slate-300">Pending</CardTitle>
+              <TrendingUp className="h-4 w-4 text-orange-400" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-white">{stats.pendingApprovals}</div>
+              <p className="text-xs text-slate-500">Awaiting approval</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-slate-800/80 border-slate-700/50 backdrop-blur">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-slate-300">Approved</CardTitle>
+              <CheckCircle className="h-4 w-4 text-green-400" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-white">{stats.approvedRegistrations}</div>
+              <p className="text-xs text-slate-500">Approved groups</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-slate-800/80 border-slate-700/50 backdrop-blur">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-slate-300">Rejected</CardTitle>
+              <XCircle className="h-4 w-4 text-red-400" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-white">{stats.rejectedRegistrations}</div>
+              <p className="text-xs text-slate-500">Rejected groups</p>
+            </CardContent>
+          </Card>
         </div>
-      </main>
 
-      <Footer ctaText="MANAGING SPANDAN 2025 WITH SUPERHERO EFFICIENCY!" />
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <Card className="bg-slate-800/80 border-slate-700/50 backdrop-blur">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Filter className="h-5 w-5 text-purple-400" />
+                Filter & Search
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  placeholder="Search by group name, leader, email..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400"
+                />
+              </div>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+                className="w-full p-2 rounded-md bg-slate-700/50 border border-slate-600 text-white"
+              >
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-slate-800/80 border-slate-700/50 backdrop-blur">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Eye className="h-5 w-5 text-blue-400" />
+                View Options
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button
+                onClick={() => setShowAllRegistrations(!showAllRegistrations)}
+                variant="outline"
+                className="w-full border-blue-500/50 text-blue-400 hover:bg-blue-500/20"
+              >
+                {showAllRegistrations ? 'Show Recent Only' : 'Show All Registrations'}
+              </Button>
+              <Button
+                onClick={loadDashboardData}
+                variant="outline"
+                className="w-full border-green-500/50 text-green-400 hover:bg-green-500/20"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Refresh Data
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-slate-800/80 border-slate-700/50 backdrop-blur">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <FileText className="h-5 w-5 text-yellow-400" />
+                Quick Actions
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-slate-400 text-sm">
+                Total Filtered: {filteredRegistrations.length}
+              </p>
+              <p className="text-slate-400 text-sm">
+                Showing: {showAllRegistrations ? 'All registrations' : 'Recent 5 only'}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Recent Registrations */}
+        <Card className="bg-slate-800/80 border-slate-700/50 backdrop-blur">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Star className="h-5 w-5 text-yellow-400" />
+                {showAllRegistrations ? 'All Registrations' : 'Recent Registrations'}
+              </span>
+              <Badge variant="secondary" className="bg-purple-500/20 text-purple-400">
+                {filteredRegistrations.length} found
+              </Badge>
+            </CardTitle>
+            <CardDescription className="text-slate-400">
+              {showAllRegistrations 
+                ? 'Complete list of group registrations' 
+                : 'Latest group registrations for quick review'
+              }
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {filteredRegistrations.length === 0 ? (
+              <div className="text-center py-12">
+                <UserX className="h-12 w-12 text-slate-600 mx-auto mb-4" />
+                <p className="text-slate-400">No registrations found matching your criteria</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredRegistrations.map((registration) => (
+                  <div
+                    key={registration.group_id}
+                    className="bg-slate-700/50 rounded-lg p-6 border border-slate-600/50 hover:border-purple-500/50 transition-colors"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-lg font-semibold text-white">{registration.group_name}</h3>
+                          <Badge className={getTierBadgeColor(registration.tier)}>
+                            {registration.tier}
+                          </Badge>
+                          <Badge variant={getStatusBadgeVariant(registration.status)}>
+                            {registration.status}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                          <div className="flex items-center gap-2 text-slate-300">
+                            <UserCheck className="h-4 w-4 text-purple-400" />
+                            <span>{registration.leader_name}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-slate-300">
+                            <Mail className="h-4 w-4 text-blue-400" />
+                            <span>{registration.leader_email}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-slate-300">
+                            <Phone className="h-4 w-4 text-green-400" />
+                            <span>{registration.leader_phone}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-slate-300">
+                            <Users className="h-4 w-4 text-yellow-400" />
+                            <span>{registration.members_count} members</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-white mb-1">
+                          ₹{registration.total_amount.toLocaleString()}
+                        </div>
+                        <div className="text-xs text-slate-400">
+                          {new Date(registration.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {registration.status === 'pending' && (
+                      <div className="flex gap-2 pt-4 border-t border-slate-600/50">
+                        <Button
+                          onClick={() => handleApproveRegistration(registration.group_id)}
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Approve
+                        </Button>
+                        <Button
+                          onClick={() => handleRejectRegistration(registration.group_id)}
+                          size="sm"
+                          variant="destructive"
+                          className="bg-red-600 hover:bg-red-700"
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Reject
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-slate-500 text-slate-300 hover:bg-slate-600"
+                          onClick={() => {
+                            alert(`Group: ${registration.group_name}\nLeader: ${registration.leader_name}\nEmail: ${registration.leader_email}\nPhone: ${registration.leader_phone}\nMembers: ${registration.members_count}\nTier: ${registration.tier}\nAmount: ₹${registration.total_amount}\nStatus: ${registration.status}\nRegistered: ${new Date(registration.created_at).toLocaleString()}`)
+                          }}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Details
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+      
+      <Footer />
     </div>
-  );
+  )
 }

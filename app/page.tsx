@@ -7,10 +7,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Calendar, MapPin, Users, Phone, Mail, Zap } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
-import { useAuth } from '@/lib/contexts/AuthContext';
 
 export default function HomePage() {
-  const { session } = useAuth();
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 relative overflow-hidden">
       {/* Comic book style background elements - positioned exactly as in design */}
@@ -122,19 +120,11 @@ export default function HomePage() {
 
           {/* Action Buttons - matching design styling */}
           <div className="flex flex-col sm:flex-row gap-6 justify-center">
-            {session ? (
-              <Link href="/register">
-                <Button size="lg" className="bg-cyan-500 hover:bg-cyan-600 text-white px-8 py-4 text-lg font-bold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-cyan-500/25 border-2 border-cyan-400 rounded-lg tracking-wide">
-                  REGISTER NOW
-                </Button>
-              </Link>
-            ) : (
-              <Link href="/login?redirect=/register">
-                <Button size="lg" className="bg-cyan-500 hover:bg-cyan-600 text-white px-8 py-4 text-lg font-bold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-cyan-500/25 border-2 border-cyan-400 rounded-lg tracking-wide">
-                  REGISTER NOW
-                </Button>
-              </Link>
-            )}
+            <Link href="/register">
+              <Button size="lg" className="bg-cyan-500 hover:bg-cyan-600 text-white px-8 py-4 text-lg font-bold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-cyan-500/25 border-2 border-cyan-400 rounded-lg tracking-wide">
+                REGISTER NOW
+              </Button>
+            </Link>
             <Link href="/events">
               <Button size="lg" variant="outline" className="border-2 border-cyan-400 text-cyan-800 hover:bg-cyan-400 hover:text-slate-900 px-8 py-4 text-lg font-bold transform hover:scale-105 transition-all duration-300 rounded-lg tracking-wide">
                 VIEW EVENTS
