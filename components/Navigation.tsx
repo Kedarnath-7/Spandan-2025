@@ -65,16 +65,6 @@ export default function Navigation({ cartCount = 0 }: NavigationProps) {
                   : 'text-gray-300 hover:text-white'
               }`}
             >
-              Events
-            </Link>
-            <Link 
-              href="/events/register" 
-              className={`px-5 py-2 rounded-full text-sm font-medium transition-colors ${
-                isActive('/events/register') 
-                  ? 'bg-cyan-500 text-white' 
-                  : 'text-gray-300 hover:text-white'
-              }`}
-            >
               Event Registration
             </Link>
             <Link 
@@ -156,17 +146,6 @@ export default function Navigation({ cartCount = 0 }: NavigationProps) {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className={`px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
                   isActive('/events') 
-                    ? 'bg-cyan-500 text-white' 
-                    : 'text-gray-300 hover:text-white hover:bg-gray-800/50'
-                }`}
-              >
-                Events
-              </Link>
-              <Link 
-                href="/events/register"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className={`px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                  isActive('/events/register') 
                     ? 'bg-cyan-500 text-white' 
                     : 'text-gray-300 hover:text-white hover:bg-gray-800/50'
                 }`}

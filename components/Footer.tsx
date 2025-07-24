@@ -34,7 +34,7 @@ export default function Footer({ ctaText = "THE END... OR IS IT JUST THE BEGINNI
             <ul className="space-y-3 text-gray-300 text-sm">
               <li>
                 <Link href="/events" className="hover:text-cyan-400 transition-colors duration-300">
-                  Events
+                  Event Registration
                 </Link>
               </li>
               <li>
