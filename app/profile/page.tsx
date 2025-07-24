@@ -37,6 +37,9 @@ import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 
+// Prevent static generation for this page since it requires authentication
+export const dynamic = 'force-dynamic';
+
 export default function ProfilePage() {
   const router = useRouter();
   const { user, loading, signOut, refreshUser } = useAuth();
