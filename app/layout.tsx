@@ -1,7 +1,8 @@
+/* eslint-disable @next/next/next-script-for-ga */
 import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import { Toaster } from '@/components/ui/toaster';
+import { Toaster } from '@/components/ui/sonner';
 import { CartProvider } from '@/lib/contexts/CartContext';
 
 const inter = Inter({ subsets: ['latin'] });

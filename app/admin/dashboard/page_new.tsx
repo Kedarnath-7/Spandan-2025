@@ -234,64 +234,42 @@ export default function AdminDashboard() {
           </div>
 
           {/* Quick Actions */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <Link href="/admin/registrations">
-              <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm hover:bg-slate-700/50 transition-all duration-300 cursor-pointer h-full">
-                <CardHeader className="text-center">
-                  <div className="mx-auto w-12 h-12 bg-purple-600/20 rounded-full flex items-center justify-center mb-3">
-                    <Users className="w-6 h-6 text-purple-400" />
-                  </div>
-                  <CardTitle className="text-white text-lg">
-                    Tier/Pass Registrations
+              <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm hover:bg-slate-700/50 transition-colors cursor-pointer">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center">
+                    <Users className="w-5 h-5 mr-2 text-purple-400" />
+                    Manage Registrations
                   </CardTitle>
-                  <CardDescription className="text-gray-300 text-sm">
-                    Review and approve tier/pass registrations
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
-
-            <Link href="/admin/event-registrations">
-              <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm hover:bg-slate-700/50 transition-all duration-300 cursor-pointer h-full">
-                <CardHeader className="text-center">
-                  <div className="mx-auto w-12 h-12 bg-orange-600/20 rounded-full flex items-center justify-center mb-3">
-                    <Calendar className="w-6 h-6 text-orange-400" />
-                  </div>
-                  <CardTitle className="text-white text-lg">
-                    Event Registrations
-                  </CardTitle>
-                  <CardDescription className="text-gray-300 text-sm">
-                    Manage event participant registrations
+                  <CardDescription className="text-gray-300">
+                    Review and approve participant registrations
                   </CardDescription>
                 </CardHeader>
               </Card>
             </Link>
 
             <Link href="/admin/events">
-              <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm hover:bg-slate-700/50 transition-all duration-300 cursor-pointer h-full">
-                <CardHeader className="text-center">
-                  <div className="mx-auto w-12 h-12 bg-blue-600/20 rounded-full flex items-center justify-center mb-3">
-                    <Calendar className="w-6 h-6 text-blue-400" />
-                  </div>
-                  <CardTitle className="text-white text-lg">
+              <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm hover:bg-slate-700/50 transition-colors cursor-pointer">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center">
+                    <Calendar className="w-5 h-5 mr-2 text-blue-400" />
                     Manage Events
                   </CardTitle>
-                  <CardDescription className="text-gray-300 text-sm">
+                  <CardDescription className="text-gray-300">
                     Create and edit event information
                   </CardDescription>
                 </CardHeader>
               </Card>
             </Link>
 
-            <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm hover:bg-slate-700/50 transition-all duration-300 cursor-pointer h-full">
-              <CardHeader className="text-center">
-                <div className="mx-auto w-12 h-12 bg-green-600/20 rounded-full flex items-center justify-center mb-3">
-                  <Download className="w-6 h-6 text-green-400" />
-                </div>
-                <CardTitle className="text-white text-lg">
+            <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm hover:bg-slate-700/50 transition-colors cursor-pointer">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center">
+                  <Download className="w-5 h-5 mr-2 text-green-400" />
                   Export Data
                 </CardTitle>
-                <CardDescription className="text-gray-300 text-sm">
+                <CardDescription className="text-gray-300">
                   Download registration reports
                 </CardDescription>
               </CardHeader>

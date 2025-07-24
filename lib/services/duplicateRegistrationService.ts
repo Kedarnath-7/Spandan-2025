@@ -77,20 +77,39 @@ const checkPhoneExists = async (phone: string): Promise<DuplicateCheckResult> =>
 
 const checkTransactionIdExists = async (transactionId: string): Promise<DuplicateCheckResult> => {
   try {
-    const { data, error } = await supabase
+    // Check in group_registrations (tier/pass registrations)
+    const { data: groupData, error: groupError } = await supabase
       .from('group_registrations')
       .select('group_id')
       .eq('payment_transaction_id', transactionId)
       .neq('status', 'rejected')
       .limit(1)
 
-    if (error) throw error
-    if (!data || data.length === 0) return { isDuplicate: false }
-
-    return {
-      isDuplicate: true,
-      existingRegistration: { groupId: data[0].group_id, memberName: 'N/A' },
+    if (groupError) throw groupError
+    if (groupData && groupData.length > 0) {
+      return {
+        isDuplicate: true,
+        existingRegistration: { groupId: groupData[0].group_id, memberName: 'N/A' },
+      }
     }
+
+    // Check in event_registrations (event registrations)
+    const { data: eventData, error: eventError } = await supabase
+      .from('event_registrations')
+      .select('group_id')
+      .eq('payment_transaction_id', transactionId)
+      .neq('status', 'rejected')
+      .limit(1)
+
+    if (eventError) throw eventError
+    if (eventData && eventData.length > 0) {
+      return {
+        isDuplicate: true,
+        existingRegistration: { groupId: eventData[0].group_id, memberName: 'N/A' },
+      }
+    }
+
+    return { isDuplicate: false }
   } catch (error) {
     console.error('Error checking transaction ID:', error)
     return { isDuplicate: false } // Fail open

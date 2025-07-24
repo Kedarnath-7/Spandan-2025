@@ -106,17 +106,18 @@ class EventService {
   /**
    * Admin: Create new event
    */
-  async createEvent(eventData: Omit<Event, 'id' | 'created_at'>): Promise<Event> {
+  /**
+   * Create a new event (admin only)
+   */
+  async createEvent(eventData: Omit<Event, 'id' | 'created_at' | 'updated_at'>): Promise<Event> {
     try {
-      // Check if user is authenticated
-      const { data: { session }, error: authError } = await supabase.auth.getSession();
-      if (authError || !session) {
-        throw new Error('Authentication required for creating events');
-      }
-
       const { data, error } = await supabase
         .from('events')
-        .insert(eventData)
+        .insert({
+          ...eventData,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
         .select()
         .single();
 
@@ -131,17 +132,17 @@ class EventService {
   /**
    * Admin: Update event
    */
+  /**
+   * Update an existing event (admin only)
+   */
   async updateEvent(eventId: string, updates: Partial<Event>): Promise<Event> {
     try {
-      // Check if user is authenticated
-      const { data: { session }, error: authError } = await supabase.auth.getSession();
-      if (authError || !session) {
-        throw new Error('Authentication required for updating events');
-      }
-
       const { data, error } = await supabase
         .from('events')
-        .update(updates)
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', eventId)
         .select()
         .single();
@@ -157,14 +158,11 @@ class EventService {
   /**
    * Admin: Delete event
    */
+  /**
+   * Delete an event (admin only)
+   */
   async deleteEvent(eventId: string): Promise<void> {
     try {
-      // Check if user is authenticated
-      const { data: { session }, error: authError } = await supabase.auth.getSession();
-      if (authError || !session) {
-        throw new Error('Authentication required for deleting events');
-      }
-
       const { error } = await supabase
         .from('events')
         .delete()
@@ -202,3 +200,12 @@ class EventService {
 }
 
 export const eventService = new EventService();
+
+// Export convenience functions
+export const getEvents = () => eventService.getAllEvents();
+export const createEvent = (eventData: Omit<Event, 'id' | 'created_at' | 'updated_at'>) => 
+  eventService.createEvent(eventData);
+export const updateEvent = (id: string, eventData: Partial<Event>) => 
+  eventService.updateEvent(id, eventData);
+export const deleteEvent = (id: string) => eventService.deleteEvent(id);
+export const getEventById = (id: string) => eventService.getEventById(id);

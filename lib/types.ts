@@ -13,14 +13,22 @@ export interface Event {
   id: string;
   name: string;
   description: string;
-  category: 'Cultural' | 'Sports' | 'Fine Arts' | 'Literary' | 'Academic';
+  category: string; // Allow any string to support custom categories
   info_points?: string[]; // Array of bullet points
   start_date?: string;
   end_date?: string;
   venue?: string;
+  price: number;
+  max_participants: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+// Cart item for shopping cart functionality
+export interface CartItem {
+  event: Event;
+  quantity: number;
 }
 
 // Group registration interface (group-level data)
@@ -92,13 +100,101 @@ export interface RegistrationView {
   members_count: number;
   total_amount: number;
   payment_transaction_id: string;
+  payment_screenshot_path?: string;
   status: 'pending' | 'approved' | 'rejected';
-  created_at: string;
-  group_name: string;
-  review_status: string;
-  reviewed_at?: string;
-  reviewed_by?: string;
   rejection_reason?: string;
+  reviewed_by?: string;
+  reviewed_at?: string;
+  created_at: string;
+  updated_at: string;
+  member_selections?: Array<{
+    name: string;
+    selection: string;
+    pass_tier?: string;
+    amount: number;
+  }>;
+}
+
+// Event Registration interfaces
+export interface EventRegistration {
+  id: string;
+  group_id: string; // EVT-XXXXXXXX format
+  
+  // Event information
+  event_id: string;
+  event_name: string;
+  event_price: number;
+  
+  // Group summary
+  total_amount: number;
+  member_count: number;
+  
+  // Payment information
+  payment_transaction_id: string;
+  payment_screenshot_path?: string;
+  
+  // Contact person
+  contact_name: string;
+  contact_email: string;
+  contact_phone: string;
+  contact_user_id: string; // Valid tier/pass user_id
+  
+  // Registration status
+  status: 'pending' | 'approved' | 'rejected';
+  reviewed_by?: string;
+  reviewed_at?: string;
+  rejection_reason?: string;
+  
+  // Timestamps
+  created_at: string;
+  updated_at: string;
+}
+
+// Event Registration Member interface
+export interface EventRegistrationMember {
+  id: string;
+  group_id: string;
+  
+  // Member identification
+  user_id: string; // delegate_user_id or pass_id from approved registration
+  
+  // Member personal information
+  name: string;
+  email: string;
+  college: string;
+  phone: string;
+  
+  // Original registration reference
+  original_group_id: string; // tier/pass group_registrations.group_id
+  
+  // Order in group
+  member_order: number;
+  
+  // Timestamps
+  created_at: string;
+}
+
+// Combined view for event registration admin dashboard
+export interface EventRegistrationView {
+  group_id: string;
+  event_id: string;
+  event_name: string;
+  event_category: string;
+  event_price: number;
+  contact_name: string;
+  contact_email: string;
+  contact_phone: string;
+  contact_user_id: string;
+  member_count: number;
+  total_amount: number;
+  payment_transaction_id: string;
+  payment_screenshot_path?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewed_by?: string;
+  reviewed_at?: string;
+  rejection_reason?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 // Registration tier interface

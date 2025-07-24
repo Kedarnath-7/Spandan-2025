@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useCart } from '@/lib/contexts/CartContext';
 import { eventService } from '@/lib/services/events';
 import { Event } from '@/lib/types';
 import { Star, Heart, Music, Guitar, Crown, Users, Calendar, Zap, Mail, Phone, MapPin, Search, Loader2, RefreshCw } from 'lucide-react';
@@ -11,6 +10,58 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
+import { getApprovedUsers, getUserDetails, createEventRegistration } from '@/lib/services/eventRegistrationService';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Plus, Trash2, Upload, CreditCard, CheckCircle, Copy, IndianRupee, Info, AlertCircle } from 'lucide-react';
+import Image from 'next/image';
+import QRCode from 'qrcode';
+import { validateTransactionIdDetailed } from '@/lib/utils/validation'
+import { DuplicateRegistrationService } from '@/lib/services/duplicateRegistrationService'
+
+interface SelectedEvent {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  date: string;
+  location: string;
+  price: number;
+  max_participants?: number;
+  info_points?: string[];
+}
+
+interface ApprovedUser {
+  user_id: string;
+  name: string;
+  email: string;
+  college: string;
+  group_id: string;
+}
+
+interface RegistrationMember {
+  userId: string;
+  name: string;
+  email: string;
+  college: string;
+  phone: string;
+  originalGroupId: string;
+}
+
+interface ContactInfo {
+  userId: string;
+  name: string;
+  email: string;
+  phone: string;
+}
+
+const PAYMENT_CONFIG = {
+  upiId: '9442172827@sbi',
+  merchantName: 'DIRECTOR ACCOUNTS OFFICIER JIPMER RECEIPTS'
+};
 
 export default function EventsPage() {
   const [events, setEvents] = useState<Event[]>([]);
@@ -20,7 +71,29 @@ export default function EventsPage() {
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { cart, addToCart, isInCart, getTotalItems } = useCart();
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [approvedUsers, setApprovedUsers] = useState<ApprovedUser[]>([]);
+  const [contactInfo, setContactInfo] = useState<ContactInfo>({
+    userId: '',
+    name: '',
+    email: '',
+    phone: ''
+  });
+  const [members, setMembers] = useState<RegistrationMember[]>([]);
+  const [paymentData, setPaymentData] = useState({
+    transactionId: '',
+    screenshotFile: null as File | null,
+    qrCodeUrl: ''
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [userIdInput, setUserIdInput] = useState('');
+  const [validatingUser, setValidatingUser] = useState(false);
+  const [validatedUser, setValidatedUser] = useState<any>(null);
+  
+  // Payment validation states
+  const [paymentValidationError, setPaymentValidationError] = useState('')
+  const [isCheckingTransactionId, setIsCheckingTransactionId] = useState(false)
 
   useEffect(() => {
     fetchEvents();
@@ -78,11 +151,6 @@ export default function EventsPage() {
     });
   }
 
-  const handleAddToCart = (event: Event) => {
-    addToCart(event);
-    toast.success(`${event.name} has been added to your cart.`);
-  };
-
   const handleRetryEvents = () => {
     fetchEvents();
   };
@@ -138,6 +206,281 @@ export default function EventsPage() {
     return IconComponent;
   };
 
+  useEffect(() => {
+    if (selectedEvent) {
+      const loadApprovedUsers = async () => {
+        const result = await getApprovedUsers();
+        if (result.success && result.data) {
+          setApprovedUsers(result.data);
+        } else {
+          toast.error('Failed to load approved users for registration.');
+        }
+      };
+      loadApprovedUsers();
+      setCurrentStep(2); // Start directly at Step 2 (member selection)
+    } else {
+      setCurrentStep(1); // Step 1 is the events listing page
+    }
+  }, [selectedEvent]);
+
+  useEffect(() => {
+    if (selectedEvent && members.length > 0) {
+      const totalAmount = selectedEvent.price * members.length;
+      const qrData = `upi://pay?pa=${PAYMENT_CONFIG.upiId}&pn=${encodeURIComponent(PAYMENT_CONFIG.merchantName)}&am=${totalAmount}&cu=INR&tn=${encodeURIComponent(`SPANDAN 2025 - ${selectedEvent.name} Registration`)}`;
+      
+      QRCode.toDataURL(qrData, { width: 256, margin: 2 })
+        .then(url => setPaymentData(prev => ({ ...prev, qrCodeUrl: url })))
+        .catch(err => console.error('QR Code generation failed:', err));
+    }
+  }, [selectedEvent, members]);
+
+  // Real-time validation for Transaction ID
+  useEffect(() => {
+    const validateTransactionId = async () => {
+      if (paymentData.transactionId.trim() === '') {
+        setPaymentValidationError('')
+        return
+      }
+
+      setIsCheckingTransactionId(true)
+
+      const transactionValidation = validateTransactionIdDetailed(paymentData.transactionId)
+      
+      if (!transactionValidation.isValid) {
+        setPaymentValidationError(transactionValidation.error || 'Invalid transaction ID')
+        setIsCheckingTransactionId(false)
+        return
+      }
+
+      // Check for duplicate transaction ID
+      try {
+        const duplicateCheck = await DuplicateRegistrationService.checkTransactionIdExists(paymentData.transactionId)
+        if (duplicateCheck.isDuplicate) {
+          setPaymentValidationError(`Transaction ID already used in registration ${duplicateCheck.existingRegistration?.groupId}`)
+        } else {
+          setPaymentValidationError('')
+        }
+      } catch (error) {
+        console.error('Error checking transaction ID duplicate:', error)
+        setPaymentValidationError('Error validating transaction ID')
+      }
+
+      setIsCheckingTransactionId(false)
+    }
+
+    const timeoutId = setTimeout(validateTransactionId, 500)
+    return () => clearTimeout(timeoutId)
+  }, [paymentData.transactionId])
+
+  const handleContactUserChange = async (userId: string) => {
+    if (!userId) return;
+
+    try {
+      const result = await getUserDetails(userId);
+      if (result.success && result.data) {
+        setContactInfo({
+          userId,
+          name: result.data.name,
+          email: result.data.email,
+          phone: result.data.phone
+        });
+        
+        const newMember: RegistrationMember = {
+          userId,
+          name: result.data.name,
+          email: result.data.email,
+          college: result.data.college,
+          phone: result.data.phone,
+          originalGroupId: result.data.group_id
+        };
+        setMembers([newMember]);
+      }
+    } catch (error) {
+      toast.error('Error loading user details');
+    }
+  };
+
+  const validateUser = async () => {
+    if (!userIdInput.trim()) {
+      toast.error('Please enter a user ID');
+      return;
+    }
+
+    setValidatingUser(true);
+    try {
+      const result = await getUserDetails(userIdInput.trim());
+      if (result.success && result.data) {
+        setValidatedUser(result.data);
+        toast.success(`User found: ${result.data.name}`);
+      } else {
+        setValidatedUser(null);
+        toast.error('User not found or not approved for tier/pass registration');
+      }
+    } catch (error) {
+      setValidatedUser(null);
+      toast.error('Error validating user ID');
+    } finally {
+      setValidatingUser(false);
+    }
+  };
+
+  const addValidatedUser = () => {
+    if (!validatedUser) return;
+
+    if (members.find(m => m.userId === validatedUser.user_id)) {
+      toast.error('User already added to registration');
+      return;
+    }
+
+    const newMember: RegistrationMember = {
+      userId: validatedUser.user_id,
+      name: validatedUser.name,
+      email: validatedUser.email,
+      college: validatedUser.college,
+      phone: validatedUser.phone,
+      originalGroupId: validatedUser.group_id
+    };
+
+    if (members.length === 0) {
+      // First member becomes contact person
+      setContactInfo({
+        userId: validatedUser.user_id,
+        name: validatedUser.name,
+        email: validatedUser.email,
+        phone: validatedUser.phone
+      });
+    }
+
+    setMembers([...members, newMember]);
+    setUserIdInput('');
+    setValidatedUser(null);
+    toast.success(`${validatedUser.name} added to registration`);
+  };
+
+  const addMember = async (userId: string) => {
+    if (members.find(m => m.userId === userId)) {
+      toast.error('User already added to registration');
+      return;
+    }
+
+    try {
+      const result = await getUserDetails(userId);
+      if (result.success && result.data) {
+        const newMember: RegistrationMember = {
+          userId,
+          name: result.data.name,
+          email: result.data.email,
+          college: result.data.college,
+          phone: result.data.phone,
+          originalGroupId: result.data.group_id
+        };
+        setMembers([...members, newMember]);
+        toast.success(`${result.data.name} added to registration`);
+      }
+    } catch (error) {
+      toast.error('Error adding member');
+    }
+  };
+
+  const removeMember = (userId: string) => {
+    setMembers(members.filter(m => m.userId !== userId));
+  };
+
+  const handleScreenshotUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast.error('File size should not exceed 5MB');
+        return;
+      }
+      
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please upload an image file');
+        return;
+      }
+      
+      setPaymentData(prev => ({ ...prev, screenshotFile: file }));
+      toast.success('Payment screenshot uploaded');
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedEvent || !contactInfo.userId || members.length === 0 || !paymentData.transactionId) {
+      toast.error('Please complete all required fields');
+      return;
+    }
+
+    // Check for payment validation errors
+    if (paymentValidationError) {
+      toast.error('Please fix payment validation errors before submitting');
+      return;
+    }
+
+    // Validate transaction ID format
+    const transactionValidation = validateTransactionIdDetailed(paymentData.transactionId)
+    if (!transactionValidation.isValid) {
+      toast.error(transactionValidation.error || 'Invalid transaction ID')
+      return
+    }
+
+    // Check for duplicate transaction ID
+    try {
+      const duplicateCheck = await DuplicateRegistrationService.checkTransactionIdExists(paymentData.transactionId)
+      if (duplicateCheck.isDuplicate) {
+        toast.error(`Transaction ID already used in registration ${duplicateCheck.existingRegistration?.groupId}`)
+        return
+      }
+    } catch (error) {
+      console.error('Error checking transaction ID duplicate:', error)
+      toast.error('Error validating transaction ID')
+      return
+    }
+
+    setSubmitting(true);
+    try {
+      const result = await createEventRegistration(
+        selectedEvent.id,
+        contactInfo.userId,
+        contactInfo.name,
+        contactInfo.email,
+        contactInfo.phone,
+        paymentData.transactionId,
+        paymentData.screenshotFile,
+        members
+      );
+
+      if (result.success) {
+        toast.success(`Event registration submitted successfully! Group ID: ${result.data?.groupId}`);
+        
+        setTimeout(() => {
+          setSelectedEvent(null);
+          setCurrentStep(1);
+          setContactInfo({ userId: '', name: '', email: '', phone: '' });
+          setMembers([]);
+          setPaymentData({ transactionId: '', screenshotFile: null, qrCodeUrl: '' });
+        }, 2000);
+      } else {
+        toast.error(result.error || 'Failed to submit registration');
+      }
+    } catch (error) {
+      toast.error('Error submitting registration');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const resetRegistration = () => {
+    setSelectedEvent(null);
+    setCurrentStep(1);
+    setContactInfo({ userId: '', name: '', email: '', phone: '' });
+    setMembers([]);
+    setPaymentData({ transactionId: '', screenshotFile: null, qrCodeUrl: '' });
+    setUserIdInput('');
+    setValidatedUser(null);
+  };
+
+  const totalAmount = selectedEvent ? selectedEvent.price * members.length : 0;
+
   return (
     <div className="min-h-screen bg-[#0A0F1A] text-white relative overflow-hidden">
       {/* Comic book style background elements - consistent with other pages */}
@@ -157,194 +500,706 @@ export default function EventsPage() {
       </div>
 
       {/* Navigation */}
-      <Navigation cartCount={getTotalItems()} />
+      <Navigation />
 
       {/* Main Content */}
       <main className="relative z-10 pt-32 pb-16">
         <div className="max-w-7xl mx-auto px-2 sm:px-3 lg:px-4">
           
-          {/* Hero Title - Exact match to design */}
+          {/* Hero Title - Fixed and Dynamic */}
           <div className="text-center mb-12">
             <div className="inline-block bg-gradient-to-r from-cyan-400 to-blue-500 px-12 py-4 rounded-2xl mb-6">
               <h1 className="text-3xl md:text-4xl font-black text-white tracking-wide">
-                SPANDAN EVENTS
+                {selectedEvent ? `${selectedEvent.name.toUpperCase()} REGISTRATION` : 'SPANDAN EVENTS'}
               </h1>
             </div>
             <p className="text-lg text-gray-300 max-w-4xl mx-auto">
-              Unleash your talents across cultural performances, sports championships, fine arts, 
-              literary competitions, and creative challenges!
+              {selectedEvent 
+                ? 'Complete your event registration and join the ultimate college fest experience'
+                : 'Unleash your talents across cultural performances, sports championships, fine arts, literary competitions, and creative challenges!'
+              }
             </p>
           </div>
 
-          {/* Search Bar - Static, loads immediately */}
-          <div className="max-w-2xl mx-auto mb-8">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search events by name, description, or category..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-gray-400 focus:border-cyan-400 focus:outline-none transition-colors"
-              />
-            </div>
-          </div>
-
-          {/* Category Filter Pills - Exact match to design */}
-          <div className="flex flex-wrap justify-center gap-3 mb-12">
-            {isLoadingCategories ? (
-              <div className="flex items-center gap-3 text-gray-400">
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Loading categories...</span>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={handleRetryCategories}
-                  className="text-cyan-400 hover:text-cyan-300 p-2"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </Button>
+          {/* Step Indicator - Always shown, current step based on state */}
+          <div className="flex justify-center mb-12">
+            {[1, 2, 3, 4].map((step) => (
+              <div key={step} className="flex items-center">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-300 ${
+                  currentStep >= step 
+                    ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg scale-110' 
+                    : 'bg-gray-700 text-gray-400'
+                }`}>
+                  {step}
+                </div>
+                {step < 4 && (
+                  <div className={`w-20 h-1 mx-3 transition-all duration-300 ${
+                    currentStep > step ? 'bg-gradient-to-r from-purple-500 to-purple-600' : 'bg-gray-700'
+                  }`} />
+                )}
               </div>
-            ) : (
-              categories.map((category) => (
-                <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 capitalize border ${
-                    selectedCategory === category
-                      ? 'bg-cyan-500 text-white border-cyan-500'
-                      : 'bg-transparent text-gray-300 border-gray-500 hover:border-gray-400 hover:text-white'
-                  }`}
-                >
-                  {category === 'all' ? 'All' : category}
-                </button>
-              ))
-            )}
+            ))}
           </div>
 
-          {/* Events Grid - Dynamic, shows loading */}
-          {isLoadingEvents ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <Loader2 className="w-12 h-12 animate-spin text-cyan-500 mb-4" />
-              <p className="text-gray-300 mb-4 text-lg">Loading amazing events...</p>
-              <Button 
-                variant="outline" 
-                onClick={handleRetryEvents}
-                className="border-cyan-500 text-cyan-800 hover:bg-cyan-500/10 hover:text-white transition-colors"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Retry Loading
-              </Button>
-            </div>
-          ) : error ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <p className="text-red-400 mb-4 text-lg">{error}</p>
-              <Button 
-                variant="outline" 
-                onClick={handleRetryEvents}
-                className="border-red-500 text-red-400 hover:bg-red-500/10"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Try Again
-              </Button>
-            </div>
-          ) : filteredEvents.length === 0 ? (
-            <div className="text-center py-20">
-              <p className="text-gray-300 text-xl">No events found matching your criteria.</p>
-              <p className="text-gray-400 mt-2">Try adjusting your search or category filter.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 max-w-full mx-auto px-1">
-              {filteredEvents.map((event) => {
-                const IconComponent = getCategoryIcon(event.category);
-                const bgColor = getCategoryColor(event.category, event.name);
-                
-                return (
-                  <div key={event.id} className={`${bgColor} rounded-2xl p-6 relative transition-all duration-300 hover:scale-105 hover:shadow-2xl min-h-[400px] flex flex-col border-2 border-white`}>
-                    {/* Category Badge - Top Right */}
-                    <div className="absolute top-4 right-4">
-                      <div className="bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full border-3 border-white/60">
-                        <span className="text-white text-xs font-bold">{event.category}</span>
+          {/* Dynamic Content Area */}
+          {selectedEvent ? (
+            <div className="max-w-6xl mx-auto">
+              {/* Step 2: Add Members (Step 1 is the events listing page) */}
+              {currentStep === 2 && (
+                <div className="bg-slate-800/50 rounded-2xl p-8 mb-8">
+                  <h2 className="text-2xl font-bold text-white mb-6">Event Registration</h2>
+
+                  {/* Complete Event Details - Wider layout */}
+                  <div className="bg-slate-700/50 rounded-xl p-6 mb-8">
+                    <h3 className="text-xl font-semibold text-cyan-400 mb-4">Event Details</h3>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="font-semibold text-white mb-2">Event Name</h4>
+                          <p className="text-cyan-400 text-lg">{selectedEvent.name}</p>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-white mb-2">Category</h4>
+                          <p className="text-gray-300">{selectedEvent.category}</p>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-white mb-2">Registration Fee</h4>
+                          <p className="text-green-400 font-bold text-lg">₹{selectedEvent.price} per member</p>
+                        </div>
+                        {selectedEvent.start_date && (
+                          <div>
+                            <h4 className="font-semibold text-white mb-2">Event Date</h4>
+                            <p className="text-gray-300">{new Date(selectedEvent.start_date).toLocaleDateString('en-IN', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}</p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-4">
+                        {selectedEvent.venue && (
+                          <div>
+                            <h4 className="font-semibold text-white mb-2">Venue</h4>
+                            <p className="text-gray-300">{selectedEvent.venue}</p>
+                          </div>
+                        )}
+                        <div>
+                          <h4 className="font-semibold text-white mb-2">Max Participants</h4>
+                          <p className="text-gray-300">{selectedEvent.max_participants} per team</p>
+                        </div>
+                        {selectedEvent.end_date && selectedEvent.start_date !== selectedEvent.end_date && (
+                          <div>
+                            <h4 className="font-semibold text-white mb-2">End Date</h4>
+                            <p className="text-gray-300">{new Date(selectedEvent.end_date).toLocaleDateString('en-IN', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}</p>
+                          </div>
+                        )}
+                        <div className="bg-purple-900/30 rounded-lg p-4 border border-purple-500/30">
+                          <h4 className="font-semibold text-purple-300 mb-2">Registration Status</h4>
+                          <p className="text-green-400 font-semibold">
+                            {selectedEvent.is_active ? '✓ Open for Registration' : '✗ Registration Closed'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="font-semibold text-white mb-2">Description</h4>
+                          <p className="text-gray-300 leading-relaxed">{selectedEvent.description}</p>
+                        </div>
+                        {selectedEvent.info_points && selectedEvent.info_points.length > 0 && (
+                          <div>
+                            <h4 className="font-semibold text-white mb-2">Event Information</h4>
+                            <ul className="text-gray-300 leading-relaxed space-y-1">
+                              {selectedEvent.info_points.map((point, index) => (
+                                <li key={index} className="flex items-start">
+                                  <span className="text-cyan-400 mr-2">•</span>
+                                  {point}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-6">
+                    {/* User ID Input */}
+                    <div>
+                      <Label className="text-lg font-semibold text-white mb-3 block">
+                        Add Team Member {members.length === 0 ? '(Group Leader)' : ''}
+                      </Label>
+                      <div className="flex gap-3">
+                        <Input
+                          value={userIdInput}
+                          onChange={(e) => setUserIdInput(e.target.value)}
+                          placeholder="Enter User ID"
+                          className="bg-slate-700/50 border-slate-600 text-white h-12 text-lg flex-1"
+                          onKeyPress={(e) => e.key === 'Enter' && validateUser()}
+                        />
+                        <Button 
+                          onClick={validateUser}
+                          disabled={validatingUser || !userIdInput.trim()}
+                          className="bg-blue-600 hover:bg-blue-700 px-6 h-12"
+                        >
+                          {validatingUser ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Validating...
+                            </>
+                          ) : (
+                            'Validate'
+                          )}
+                        </Button>
                       </div>
                     </div>
 
-                    {/* Icon - Center Top */}
-                    <div className="flex justify-center mb-6 mt-8">
-                      <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 border-2 border-white/50">
-                        <IconComponent className="w-12 h-12 text-white" />
+                    {/* Validated User Display */}
+                    {validatedUser && (
+                      <div className="bg-green-900/20 rounded-xl p-4 border border-green-500/30">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-green-400 font-semibold">✓ Valid User Found</p>
+                            <p className="text-white font-semibold">{validatedUser.name}</p>
+                            <p className="text-gray-300">{validatedUser.email}</p>
+                            <p className="text-gray-400 text-sm">{validatedUser.college}</p>
+                          </div>
+                          <Button 
+                            onClick={addValidatedUser}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            Select Member
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Current Members List */}
+                    {members.length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-semibold text-white mb-4">Team Members ({members.length})</h3>
+                        <div className="space-y-3">
+                          {members.map((member, index) => (
+                            <div key={member.userId} className="bg-slate-700/50 rounded-xl p-4 flex items-center justify-between">
+                              <div>
+                                <p className="font-semibold text-white">
+                                  {member.name} {index === 0 && <span className="text-cyan-400 text-sm">(Group Leader)</span>}
+                                </p>
+                                <p className="text-gray-300">{member.email}</p>
+                                <p className="text-gray-400 text-sm">{member.college}</p>
+                              </div>
+                              <Button 
+                                variant="destructive" 
+                                size="sm" 
+                                onClick={() => removeMember(member.userId)}
+                                className="hover:bg-red-600"
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {/* Add Another Member Button */}
+                        <div className="mt-4">
+                          <Button 
+                            onClick={() => {
+                              setUserIdInput('');
+                              setValidatedUser(null);
+                              // Scroll to input area
+                              const inputElement = document.querySelector('input[placeholder="Enter User ID"]') as HTMLInputElement;
+                              inputElement?.focus();
+                            }}
+                            variant="outline" 
+                            className="border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white w-full"
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add Another Member
+                          </Button>
+                        </div>
+                        
+                        <div className="mt-4 p-4 bg-green-900/20 rounded-xl border border-green-500/30">
+                          <p className="text-green-400 font-semibold">
+                            Total Registration Fee: ₹{totalAmount}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex justify-between pt-6">
+                    <Button onClick={resetRegistration} variant="outline" className="border-gray-600 text-gray-300 hover:bg-gray-700">
+                      Back to Events
+                    </Button>
+                    <Button 
+                      onClick={() => setCurrentStep(3)} 
+                      disabled={members.length === 0}
+                      className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 px-8"
+                    >
+                      Continue to Payment
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Payment */}
+              {currentStep === 3 && (
+                <div className="space-y-8">
+                  <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
+                    <CardHeader>
+                      <CardTitle className="text-white text-2xl">Payment Information</CardTitle>
+                      <p className="text-gray-300">Complete your payment to confirm registration</p>
+                    </CardHeader>
+                    <CardContent className="space-y-8">
+                      {/* Payment Instructions */}
+                      <div className="bg-blue-900/30 border border-blue-600/30 p-6 rounded-lg">
+                        <div className="flex items-start space-x-3">
+                          <Info className="w-6 h-6 text-blue-400 flex-shrink-0 mt-0.5" />
+                          <div className="space-y-3">
+                            <h4 className="text-lg font-semibold text-blue-300">Payment Instructions</h4>
+                            <ol className="text-sm text-gray-300 space-y-2 list-decimal list-inside">
+                              <li>Scan the QR code with any UPI app or use the UPI ID provided below</li>
+                              <li>Enter the exact amount: <span className="font-bold text-green-400">₹{totalAmount}</span></li>
+                              <li>Complete the payment and note down the transaction ID</li>
+                              <li>Enter the transaction ID in the field below</li>
+                              <li>Upload a screenshot of the payment confirmation</li>
+                              <li>Click &ldquo;Review &amp; Submit&rdquo; to complete your registration</li>
+                            </ol>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Payment Methods */}
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* QR Code Section */}
+                        <Card className="bg-slate-700/50 border-slate-600">
+                          <CardHeader>
+                            <CardTitle className="text-white flex items-center">
+                              <CreditCard className="w-5 h-5 mr-2" />
+                              Scan QR Code
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div className="flex justify-center">
+                              <div className="bg-white p-4 rounded-lg">
+                                {paymentData.qrCodeUrl ? (
+                                  <Image 
+                                    src={paymentData.qrCodeUrl}
+                                    alt={`UPI QR Code for payment of ₹${totalAmount}`}
+                                    width={200}
+                                    height={200}
+                                    className="w-48 h-48"
+                                  />
+                                ) : (
+                                  <div className="w-48 h-48 flex items-center justify-center bg-gray-100 rounded-lg">
+                                    <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-center space-y-2">
+                              <p className="text-sm text-gray-300">
+                                Scan with any UPI app
+                              </p>
+                              <p className="text-lg font-bold text-green-400">
+                                Amount: ₹{totalAmount}
+                              </p>
+                            </div>
+                            <div className="bg-slate-600/50 p-3 rounded-lg">
+                              <p className="text-xs text-gray-300">
+                                <span className="font-semibold">Merchant:</span><br/>
+                                DIRECTOR ACCOUNTS OFFICIER JIPMER RECEIPTS
+                              </p>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        {/* UPI Details Section */}
+                        <Card className="bg-slate-700/50 border-slate-600">
+                          <CardHeader>
+                            <CardTitle className="text-white flex items-center">
+                              <IndianRupee className="w-5 h-5 mr-2" />
+                              UPI Payment Details
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div className="space-y-3">
+                              <div>
+                                <Label className="text-gray-300 text-sm">Merchant Name</Label>
+                                <div className="bg-slate-600 p-3 rounded-lg mt-1">
+                                  <p className="text-white font-medium text-sm break-words">
+                                    DIRECTOR ACCOUNTS OFFICIER JIPMER RECEIPTS
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              <div>
+                                <Label className="text-gray-300 text-sm">UPI ID</Label>
+                                <div className="flex items-center space-x-2 mt-1">
+                                  <div className="bg-slate-600 px-3 py-2 rounded-lg flex-1">
+                                    <code className="text-white font-mono text-sm">
+                                      9442172827@sbi
+                                    </code>
+                                  </div>
+                                  <Button
+                                    onClick={() => {
+                                      navigator.clipboard.writeText('9442172827@sbi');
+                                      toast.success('UPI ID copied to clipboard!');
+                                    }}
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white"
+                                  >
+                                    <Copy className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+
+                              <div>
+                                <Label className="text-gray-300 text-sm">Amount to Pay</Label>
+                                <div className="bg-green-900/30 border border-green-600/30 p-3 rounded-lg mt-1">
+                                  <div className="text-2xl font-bold text-green-400">₹{totalAmount}</div>
+                                  <p className="text-xs text-green-300">Enter this exact amount</p>
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      {/* Transaction Details */}
+                      <div className="space-y-6">
+                        <div className="space-y-2">
+                          <Label htmlFor="transaction-id" className="text-gray-300 font-medium">
+                            Payment Transaction ID *
+                          </Label>
+                          <div className="relative">
+                            <Input
+                              id="transaction-id"
+                              value={paymentData.transactionId}
+                              onChange={(e) => setPaymentData({...paymentData, transactionId: e.target.value})}
+                              className={`bg-slate-700 border-slate-600 text-white ${
+                                paymentValidationError ? 'border-red-500' : ''
+                              }`}
+                              placeholder="Enter UPI transaction ID (e.g., 123456789012)"
+                            />
+                            {isCheckingTransactionId && (
+                              <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+                            )}
+                          </div>
+                          {paymentValidationError && (
+                            <p className="text-red-400 text-sm mt-1">{paymentValidationError}</p>
+                          )}
+                          <p className="text-xs text-gray-400">
+                            You&apos;ll find this in your UPI app after successful payment
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="payment-screenshot" className="text-gray-300 font-medium">
+                            Payment Screenshot *
+                          </Label>
+                          <div className={`border-2 border-dashed rounded-lg p-6 text-center hover:border-slate-500 transition-colors ${
+                            paymentValidationError.includes('screenshot') ? 'border-red-500' : 'border-slate-600'
+                          }`}>
+                            <input
+                              id="payment-screenshot"
+                              type="file"
+                              accept="image/*"
+                              onChange={handleScreenshotUpload}
+                              className="hidden"
+                            />
+                            <Label
+                              htmlFor="payment-screenshot"
+                              className="cursor-pointer flex flex-col items-center space-y-3 text-gray-300 hover:text-white transition-colors"
+                            >
+                              <Upload className="w-8 h-8" />
+                              <div className="text-center">
+                                <span className="block font-medium">
+                                  {paymentData.screenshotFile ? paymentData.screenshotFile.name : 'Click to upload payment screenshot'}
+                                </span>
+                                <span className="text-sm text-gray-400 block mt-1">
+                                  PNG, JPG, JPEG (max 5MB)
+                                </span>
+                              </div>
+                            </Label>
+                          </div>
+                          {paymentValidationError && paymentValidationError.includes('screenshot') && (
+                            <p className="text-red-400 text-sm mt-1">{paymentValidationError}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Navigation Buttons */}
+                      <div className="flex justify-between pt-6 border-t border-slate-600">
+                        <Button
+                          onClick={() => setCurrentStep(2)}
+                          variant="outline"
+                          className="border-slate-600 text-gray-300 hover:bg-slate-700"
+                        >
+                          Back to Details
+                        </Button>
+                        <Button
+                          onClick={() => setCurrentStep(4)}
+                          className="bg-purple-600 hover:bg-purple-700"
+                          disabled={!paymentData.transactionId || !paymentData.screenshotFile || !!paymentValidationError || isCheckingTransactionId}
+                        >
+                          Review & Submit
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* Step 4: Review and Submit */}
+              {currentStep === 4 && (
+                <div className="bg-slate-800/50 rounded-2xl p-8 mb-8">
+                  <h2 className="text-2xl font-bold text-white mb-6">Review and Submit</h2>
+                  
+                  <div className="space-y-6">
+                    {/* Event Summary */}
+                    <div className="bg-slate-700/50 rounded-xl p-6">
+                      <h3 className="text-xl font-semibold text-cyan-400 mb-4">Event Details</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-gray-400">Event Name</p>
+                          <p className="text-white font-semibold">{selectedEvent.name}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400">Category</p>
+                          <p className="text-white font-semibold">{selectedEvent.category}</p>
+                        </div>
                       </div>
                     </div>
-
-                    {/* Event Title - Large and Bold with better font */}
-                    <h3 className="text-xl md:text-2xl font-black text-white mb-3 text-center leading-tight tracking-wider uppercase" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif', fontWeight: 900 }}>
-                      {event.name}
-                    </h3>
-
-                    {/* Event Description - Better typography */}
-                    <p className="text-white/95 text-sm font-semibold mb-6 text-center leading-relaxed flex-grow" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
-                      {event.description}
-                    </p>
-
-                    {/* Event Details - Info Points with better styling */}
-                    <div className="space-y-2 mb-6">
-                      {event.info_points && event.info_points.length > 0 ? (
-                        event.info_points.map((point, index) => (
-                          <div key={index} className="flex items-start space-x-3">
-                            <div className="w-2 h-2 bg-white rounded-full flex-shrink-0 mt-2"></div>
-                            <span className="text-white text-sm font-bold leading-relaxed">{point}</span>
+                    
+                    {/* Members Summary */}
+                    <div className="bg-slate-700/50 rounded-xl p-6">
+                      <h3 className="text-xl font-semibold text-cyan-400 mb-4">Team Members ({members.length})</h3>
+                      <div className="space-y-3">
+                        {members.map((member, index) => (
+                          <div key={member.userId} className="flex items-center space-x-4">
+                            <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center text-white font-semibold text-sm">
+                              {index + 1}
+                            </div>
+                            <div>
+                              <p className="text-white font-semibold">
+                                {member.name} {index === 0 && <span className="text-yellow-400">(Leader)</span>}
+                              </p>
+                              <p className="text-gray-400 text-sm">{member.email}</p>
+                            </div>
                           </div>
-                        ))
-                      ) : (
-                        <>
-                          <div className="flex items-center space-x-3">
-                            <div className="w-2 h-2 bg-white rounded-full flex-shrink-0"></div>
-                            <span className="text-white text-sm font-bold">Team Event</span>
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <div className="w-2 h-2 bg-white rounded-full flex-shrink-0"></div>
-                            <span className="text-white text-sm font-bold">{event.category}</span>
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <div className="w-2 h-2 bg-white rounded-full flex-shrink-0"></div>
-                            <span className="text-white text-sm font-bold">Live Performance</span>
-                          </div>
-                        </>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Payment Summary */}
+                    <div className="bg-slate-700/50 rounded-xl p-6">
+                      <h3 className="text-xl font-semibold text-cyan-400 mb-4">Payment Details</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-gray-400">Total Amount</p>
+                          <p className="text-green-400 font-bold text-xl">₹{totalAmount}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400">Transaction ID</p>
+                          <p className="text-white font-semibold">{paymentData.transactionId}</p>
+                        </div>
+                      </div>
+                      {paymentData.screenshotFile && (
+                        <div className="mt-4">
+                          <p className="text-gray-400">Payment Screenshot</p>
+                          <p className="text-green-400">✓ {paymentData.screenshotFile.name}</p>
+                        </div>
                       )}
                     </div>
-
-                    {/* Registration Fee Button - With thick white border */}
-                    <button
-                      onClick={() => handleAddToCart(event)}
-                      disabled={isInCart(event.id)}
-                      className={`w-full py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 font-black text-sm border-2 border-white ${
-                        isInCart(event.id)
-                          ? 'bg-green-500 hover:bg-green-600 text-white'
-                          : 'bg-cyan-400 hover:bg-cyan-500 text-white'
-                      }`}
-                      style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}
-                    >
-                      <div className="text-center">
-                        <div className="text-sm font-black tracking-wider uppercase">
-                          {isInCart(event.id) ? 'ADDED TO CART ✓' : 'REGISTRATION FEE'}
-                        </div>
-                        <div className="text-lg font-black">₹{event.price}</div>
-                      </div>
-                    </button>
                   </div>
-                );
-              })}
+                  
+                  <div className="flex justify-between pt-6">
+                    <Button onClick={() => setCurrentStep(3)} variant="outline" className="border-gray-600 text-gray-300 hover:bg-gray-700">
+                      Back
+                    </Button>
+                    <Button 
+                      onClick={handleSubmit} 
+                      disabled={submitting}
+                      className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 px-8 text-lg font-semibold"
+                    >
+                      {submitting ? (
+                        <>
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        'Complete Registration'
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          ) : (
+            <>
+              {/* Search Bar - Only shown when not in registration mode */}
+              <div className="max-w-2xl mx-auto mb-8">
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="text"
+                    placeholder="Search events by name, description, or category..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-12 pr-4 py-4 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-gray-400 focus:border-cyan-400 focus:outline-none transition-colors"
+                  />
+                </div>
+              </div>
 
-          {/* Cart Indicator */}
-          {getTotalItems() > 0 && (
-            <div className="fixed bottom-8 right-8 z-50">
-              <Link href="/payment">
-                <Button className="bg-cyan-500 hover:bg-cyan-600 text-white rounded-full px-8 py-4 text-lg font-bold shadow-2xl transform hover:scale-105 transition-all duration-300 border-2 border-white/30">
-                  View Cart ({getTotalItems()})
-                </Button>
-              </Link>
-            </div>
+              {/* Category Filter Pills - Only shown when not in registration mode */}
+              <div className="flex flex-wrap justify-center gap-3 mb-12">
+                {isLoadingCategories ? (
+                  <div className="flex items-center gap-3 text-gray-400">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Loading categories...</span>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={handleRetryCategories}
+                      className="text-cyan-400 hover:text-cyan-300 p-2"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  categories.map((category) => (
+                    <button
+                      key={category}
+                      onClick={() => setSelectedCategory(category)}
+                      className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 capitalize border ${
+                        selectedCategory === category
+                          ? 'bg-cyan-500 text-white border-cyan-500'
+                          : 'bg-transparent text-gray-300 border-gray-500 hover:border-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {category === 'all' ? 'All' : category}
+                    </button>
+                  ))
+                )}
+              </div>
+
+              {/* Events Grid */}
+              {isLoadingEvents ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                  <Loader2 className="w-12 h-12 animate-spin text-cyan-500 mb-4" />
+                  <p className="text-gray-300 mb-4 text-lg">Loading amazing events...</p>
+                  <Button 
+                    variant="outline" 
+                    onClick={handleRetryEvents}
+                    className="border-cyan-500 text-cyan-800 hover:bg-cyan-500/10 hover:text-white transition-colors"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Retry Loading
+                  </Button>
+                </div>
+              ) : error ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                  <p className="text-red-400 mb-4 text-lg">{error}</p>
+                  <Button 
+                    variant="outline" 
+                    onClick={handleRetryEvents}
+                    className="border-red-500 text-red-400 hover:bg-red-500/10"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Try Again
+                  </Button>
+                </div>
+              ) : filteredEvents.length === 0 ? (
+                <div className="text-center py-20">
+                  <p className="text-gray-300 text-xl">No events found matching your criteria.</p>
+                  <p className="text-gray-400 mt-2">Try adjusting your search or category filter.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 max-w-full mx-auto px-1">
+                  {filteredEvents.map((event) => {
+                    const IconComponent = getCategoryIcon(event.category);
+                    const bgColor = getCategoryColor(event.category, event.name);
+                    
+                    return (
+                      <div key={event.id} className={`${bgColor} rounded-2xl p-6 relative transition-all duration-300 hover:scale-105 hover:shadow-2xl min-h-[400px] flex flex-col border-2 border-white`}>
+                        {/* Category Badge - Top Right */}
+                        <div className="absolute top-4 right-4">
+                          <div className="bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full border-3 border-white/60">
+                            <span className="text-white text-xs font-bold">{event.category}</span>
+                          </div>
+                        </div>
+
+                        {/* Icon - Center Top */}
+                        <div className="flex justify-center mb-6 mt-8">
+                          <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 border-2 border-white/50">
+                            <IconComponent className="w-12 h-12 text-white" />
+                          </div>
+                        </div>
+
+                        {/* Event Title - Large and Bold with better font */}
+                        <h3 className="text-xl md:text-2xl font-black text-white mb-3 text-center leading-tight tracking-wider uppercase" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif', fontWeight: 900 }}>
+                          {event.name}
+                        </h3>
+
+                        {/* Event Description - Better typography */}
+                        <p className="text-white/95 text-sm font-semibold mb-6 text-center leading-relaxed flex-grow" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
+                          {event.description}
+                        </p>
+
+                        {/* Event Details - Info Points with better styling */}
+                        <div className="space-y-2 mb-6">
+                          {event.info_points && event.info_points.length > 0 ? (
+                            event.info_points.map((point, index) => (
+                              <div key={index} className="flex items-start space-x-3">
+                                <div className="w-2 h-2 bg-white rounded-full flex-shrink-0 mt-2"></div>
+                                <span className="text-white text-sm font-bold leading-relaxed">{point}</span>
+                              </div>
+                            ))
+                          ) : (
+                            <>
+                              <div className="flex items-center space-x-3">
+                                <div className="w-2 h-2 bg-white rounded-full flex-shrink-0"></div>
+                                <span className="text-white text-sm font-bold">Team Event</span>
+                              </div>
+                              <div className="flex items-center space-x-3">
+                                <div className="w-2 h-2 bg-white rounded-full flex-shrink-0"></div>
+                                <span className="text-white text-sm font-bold">{event.category}</span>
+                              </div>
+                              <div className="flex items-center space-x-3">
+                                <div className="w-2 h-2 bg-white rounded-full flex-shrink-0"></div>
+                                <span className="text-white text-sm font-bold">Live Performance</span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Registration Fee Button - With thick white border */}
+                        <button
+                          onClick={() => setSelectedEvent(event)}
+                          className={`w-full py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 font-black text-sm border-2 border-white bg-cyan-400 hover:bg-cyan-500 text-white`}
+                          style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}
+                        >
+                          <div className="text-center">
+                            <div className="text-sm font-black tracking-wider uppercase">
+                              REGISTER NOW
+                            </div>
+                            <div className="text-lg font-black">₹{event.price}</div>
+                          </div>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
 
         </div>

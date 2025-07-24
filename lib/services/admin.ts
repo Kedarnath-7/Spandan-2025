@@ -1,6 +1,5 @@
 import { supabase } from '@/lib/supabase';
 import { registrationService } from './registration';
-import { paymentService } from './payment';
 import { eventService } from './events';
 
 class AdminService {
@@ -11,17 +10,15 @@ class AdminService {
     try {
       const [
         registrationStats,
-        paymentStats,
         eventStats
       ] = await Promise.all([
         registrationService.getRegistrationStats(),
-        paymentService.getPaymentStats(),
         this.getGeneralStats()
       ]);
 
       return {
         registrations: registrationStats,
-        payments: paymentStats,
+        payments: { total: 0, pending: 0, approved: 0 }, // Placeholder for payment stats
         events: eventStats,
       };
     } catch (error) {
@@ -302,10 +299,6 @@ class AdminService {
         case 'events':
           data = await registrationService.getAllEventRegistrations();
           filename = `event-registrations-${new Date().toISOString().split('T')[0]}.csv`;
-          break;
-        case 'payments':
-          data = await paymentService.getAllPayments();
-          filename = `payments-${new Date().toISOString().split('T')[0]}.csv`;
           break;
         case 'users':
           data = await this.getAllUsers();

@@ -68,6 +68,16 @@ export default function Navigation({ cartCount = 0 }: NavigationProps) {
               Events
             </Link>
             <Link 
+              href="/events/register" 
+              className={`px-5 py-2 rounded-full text-sm font-medium transition-colors ${
+                isActive('/events/register') 
+                  ? 'bg-cyan-500 text-white' 
+                  : 'text-gray-300 hover:text-white'
+              }`}
+            >
+              Event Registration
+            </Link>
+            <Link 
               href="/contact" 
               className={`px-5 py-2 rounded-full text-sm font-medium transition-colors ${
                 isActive('/contact') 
@@ -151,6 +161,17 @@ export default function Navigation({ cartCount = 0 }: NavigationProps) {
                 }`}
               >
                 Events
+              </Link>
+              <Link 
+                href="/events/register"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                  isActive('/events/register') 
+                    ? 'bg-cyan-500 text-white' 
+                    : 'text-gray-300 hover:text-white hover:bg-gray-800/50'
+                }`}
+              >
+                Event Registration
               </Link>
               <Link 
                 href="/contact"

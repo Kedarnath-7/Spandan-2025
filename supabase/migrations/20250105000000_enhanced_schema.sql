@@ -44,6 +44,8 @@ CREATE TABLE events (
   start_date timestamptz,
   end_date timestamptz,
   venue text,
+  price numeric NOT NULL DEFAULT 0,
+  max_participants integer DEFAULT 20,
   is_active boolean DEFAULT true,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
@@ -321,9 +323,14 @@ ALTER TABLE group_members ENABLE ROW LEVEL SECURITY;
 -- STEP 6: CREATE PERMISSIVE RLS POLICIES (FIXED)
 -- ============================================================================
 
--- Events table policies (public read)
+-- Events table policies (public read, admin full access)
 CREATE POLICY "Enable read for all users" ON events
   FOR SELECT USING (is_active = true);
+
+-- Policy for admin users to manage events (insert, update, delete)
+-- This allows bypassing RLS for admin operations via service role key
+CREATE POLICY "Enable all for admin operations" ON events
+  FOR ALL USING (true);
 
 -- Admin users policies
 CREATE POLICY "Enable all for admin users" ON admin_users

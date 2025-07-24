@@ -13,7 +13,7 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import { updatePasswordSafely } from '@/lib/auth/auth-utils';
 import { getUserProfile, upsertUserProfile, type UserProfile } from '@/lib/services/userProfile';
 import { UnifiedRegistrationService, type UnifiedRegistration } from '@/lib/services/unifiedRegistrationAdmin';
-import type { User as UserType } from '@/lib/types';
+//import type { User as UserType } from '@/lib/types';
 import { 
   User, 
   Mail, 

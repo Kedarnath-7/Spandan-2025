@@ -90,10 +90,13 @@ export class AdminService {
     error?: string;
   }> {
     try {
-      // Get group registrations with member info using the corrected view
+      // Get group registrations with complete data by joining tables directly
       const { data: registrationData, error: registrationError } = await supabase
-        .from('registration_view')
-        .select('*')
+        .from('group_registrations')
+        .select(`
+          *,
+          group_members!inner(*)
+        `)
         .order('created_at', { ascending: false });
 
       if (registrationError) {
@@ -101,34 +104,47 @@ export class AdminService {
         throw new Error(`Failed to fetch registrations: ${registrationError.message}`);
       }
 
-      // Group by group_id and transform to RegistrationView format
+      // Process the joined data
       const groupedData = new Map<string, RegistrationView>();
       
       if (registrationData) {
-        for (const row of registrationData) {
-          if (!groupedData.has(row.group_id)) {
-            // Create entry for the group leader (first member)
-            groupedData.set(row.group_id, {
-              group_id: row.group_id,
-              delegate_user_id: row.delegate_user_id,
-              leader_name: row.name,
-              leader_email: row.email,
-              leader_phone: row.phone,
-              college: row.college,
-              college_location: row.college_location,
-              tier: row.tier,
-              tier_amount: row.tier_amount,
-              members_count: row.member_count,
-              total_amount: row.group_total_amount,
-              payment_transaction_id: row.payment_transaction_id,
-              status: row.registration_status,
-              created_at: row.created_at,
-              group_name: `Group ${row.group_id}`,
-              review_status: row.review_status,
-              reviewed_at: row.reviewed_at,
-              reviewed_by: row.reviewed_by,
-              rejection_reason: row.rejection_reason
-            });
+        for (const groupReg of registrationData) {
+          if (!groupedData.has(groupReg.group_id)) {
+            // Find the first member (leader) for contact info
+            const firstMember = groupReg.group_members?.[0];
+            
+            if (firstMember) {
+              // Get all member selections
+              const memberSelections = groupReg.group_members.map((member: any) => ({
+                name: member.name,
+                selection: member.tier || member.pass_type,
+                pass_tier: member.pass_tier,
+                amount: member.amount
+              }));
+              
+              groupedData.set(groupReg.group_id, {
+                group_id: groupReg.group_id,
+                delegate_user_id: firstMember.delegate_user_id || firstMember.user_id,
+                leader_name: firstMember.name,
+                leader_email: firstMember.email,
+                leader_phone: firstMember.phone,
+                college: firstMember.college,
+                college_location: firstMember.college_location,
+                tier: firstMember.tier || firstMember.pass_type || 'Unknown',
+                tier_amount: firstMember.amount || 0,
+                members_count: groupReg.member_count,
+                total_amount: groupReg.total_amount,
+                payment_transaction_id: groupReg.payment_transaction_id,
+                payment_screenshot_path: groupReg.payment_screenshot_path,
+                status: groupReg.status,
+                created_at: groupReg.created_at,
+                updated_at: groupReg.updated_at,
+                reviewed_at: groupReg.reviewed_at,
+                reviewed_by: groupReg.reviewed_by,
+                rejection_reason: groupReg.rejection_reason,
+                member_selections: memberSelections
+              });
+            }
           }
         }
       }
@@ -226,7 +242,7 @@ export class AdminService {
       const { error } = await supabase
         .from('group_registrations')
         .update({
-          registration_status: 'approved',
+          status: 'approved', // Use status field name
           reviewed_by: adminEmail || 'admin',
           reviewed_at: new Date().toISOString(),
           rejection_reason: null,
@@ -267,7 +283,7 @@ export class AdminService {
       const { error } = await supabase
         .from('group_registrations')
         .update({
-          registration_status: 'rejected',
+          status: 'rejected', // Use status field name
           reviewed_by: adminEmail || 'admin',
           reviewed_at: new Date().toISOString(),
           rejection_reason: rejectionReason,

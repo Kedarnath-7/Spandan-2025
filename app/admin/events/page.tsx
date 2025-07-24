@@ -7,9 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/lib/contexts/AuthContext';
-import { isAdminEmailSync } from '@/lib/config/admin';
+import { toast } from 'sonner';
 import { eventService } from '@/lib/services/events';
 import { Event } from '@/lib/types';
 import { 
@@ -23,7 +21,8 @@ import {
   ArrowLeft,
   Save,
   X,
-  RefreshCw
+  RefreshCw,
+  DollarSign
 } from 'lucide-react';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
@@ -43,11 +42,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { supabase } from '@/lib/supabase';
 
 interface EventFormData {
   name: string;
-  category: 'Cultural' | 'Sports' | 'Fine Arts' | 'Literary' | 'Academic';
+  category: 'Cultural' | 'Sports' | 'Fine Arts' | 'Literary' | 'Academic' | 'Other';
+  customCategory: string; // For when "Other" is selected
   price: number;
   description: string;
   info_points: string; // Comma-separated string that will be converted to array
@@ -60,6 +59,7 @@ interface EventFormData {
 const initialFormData: EventFormData = {
   name: '',
   category: 'Cultural',
+  customCategory: '',
   price: 0,
   description: '',
   info_points: '',
@@ -71,8 +71,6 @@ const initialFormData: EventFormData = {
 
 export default function AdminEventManagement() {
   const router = useRouter();
-  const { user, session, loading } = useAuth();
-  const { toast } = useToast();
   
   const [events, setEvents] = useState<Event[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
@@ -84,52 +82,28 @@ export default function AdminEventManagement() {
   const [formData, setFormData] = useState<EventFormData>(initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Check authentication and admin privileges
+  // Check authentication using simple localStorage session
   useEffect(() => {
-    if (!loading) {
-      if (!session || !user) {
-        toast({
-          title: 'Authentication Required',
-          description: 'Please login to access admin panel',
-          variant: 'destructive'
-        });
-        router.push('/login');
-        return;
-      }
-
-      // Check if user is admin
-      if (!user.isAdmin) {
-        toast({
-          title: 'Access Denied',
-          description: 'You do not have admin privileges',
-          variant: 'destructive'
-        });
-        router.push('/profile');
-        return;
-      }
+    const adminSession = localStorage.getItem('adminSession');
+    if (!adminSession) {
+      toast.error('Please login to access admin panel');
+      router.push('/admin');
+      return;
     }
-  }, [loading, session, user, toast, router]);
 
-  useEffect(() => {
-    const loadEvents = async () => {
-      try {
-        setIsLoading(true);
-        const eventsData = await eventService.getAllEvents();
-        setEvents(eventsData);
-      } catch (error) {
-        console.error('Error loading events:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load events. Click refresh to try again.',
-          variant: 'destructive'
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    const session = JSON.parse(adminSession);
+    const currentTime = Date.now();
+    const sessionDuration = 24 * 60 * 60 * 1000; // 24 hours
+
+    if (currentTime - session.loginTime > sessionDuration) {
+      localStorage.removeItem('adminSession');
+      toast.error('Session expired. Please login again.');
+      router.push('/admin');
+      return;
+    }
 
     loadEvents();
-  }, [toast]);
+  }, [router]);
 
   const loadEvents = async () => {
     try {
@@ -138,15 +112,15 @@ export default function AdminEventManagement() {
       setEvents(eventsData);
     } catch (error) {
       console.error('Error loading events:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load events. Please try again.',
-        variant: 'destructive'
-      });
+      toast.error('Failed to load events. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadEvents();
+  }, []);
 
   useEffect(() => {
     const filterEvents = () => {
@@ -180,15 +154,29 @@ export default function AdminEventManagement() {
 
   const handleEditEvent = (event: Event) => {
     setEditingEvent(event);
+    
+    // Format dates properly for datetime-local input
+    const formatDateForInput = (dateString: string | undefined) => {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      // Format to YYYY-MM-DDTHH:MM format required by datetime-local
+      return date.toISOString().slice(0, 16);
+    };
+    
+    // Check if it's a custom category (not in the predefined list)
+    const predefinedCategories = ['Cultural', 'Sports', 'Fine Arts', 'Literary', 'Academic'];
+    const isCustomCategory = !predefinedCategories.includes(event.category);
+    
     setFormData({
       name: event.name,
-      category: event.category,
-      price: event.price,
+      category: isCustomCategory ? 'Other' : (event.category as 'Cultural' | 'Sports' | 'Fine Arts' | 'Literary' | 'Academic'),
+      customCategory: isCustomCategory ? event.category : '',
+      price: event.price || 0,
       description: event.description,
       info_points: event.info_points ? event.info_points.join(', ') : '',
       venue: event.venue || '',
-      start_date: event.start_date || '',
-      end_date: event.end_date || '',
+      start_date: formatDateForInput(event.start_date),
+      end_date: formatDateForInput(event.end_date),
       max_participants: event.max_participants || 50
     });
     setIsDialogOpen(true);
@@ -201,18 +189,11 @@ export default function AdminEventManagement() {
 
     try {
       await eventService.deleteEvent(eventId);
-      toast({
-        title: 'Success',
-        description: 'Event deleted successfully'
-      });
+      toast.success('Event deleted successfully!');
       await loadEvents();
     } catch (error) {
       console.error('Error deleting event:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete event',
-        variant: 'destructive'
-      });
+      toast.error('Failed to delete event. Please try again.');
     }
   };
 
@@ -226,20 +207,59 @@ export default function AdminEventManagement() {
 
       // Validate required fields
       if (!formData.name || !formData.description || !formData.category) {
-        toast({
-          title: 'Validation Error',
-          description: 'Please fill in all required fields (name, description, category)',
-          variant: 'destructive'
-        });
+        toast.error('Please fill in all required fields (name, description, category)');
         return;
       }
 
-      // Prepare event data with info_points conversion
+      // Validate custom category if "Other" is selected
+      if (formData.category === 'Other' && !formData.customCategory.trim()) {
+        toast.error('Please enter a custom category name');
+        return;
+      }
+
+      // Validate mandatory numeric fields
+      if (!formData.max_participants || formData.max_participants <= 0) {
+        toast.error('Max participants must be a positive number');
+        return;
+      }
+
+      // Validate mandatory date fields
+      if (!formData.start_date) {
+        toast.error('Start date is required');
+        return;
+      }
+
+      if (!formData.end_date) {
+        toast.error('End date is required');
+        return;
+      }
+
+      // Validate date logic
+      const startDate = new Date(formData.start_date);
+      const endDate = new Date(formData.end_date);
+      
+      if (endDate < startDate) {
+        toast.error('End date must be after start date');
+        return;
+      }
+
+      // Determine the final category
+      const finalCategory = formData.category === 'Other' ? formData.customCategory.trim() : formData.category;
+
+      // Prepare event data with info_points conversion and default values
       const eventData = {
-        ...formData,
+        name: formData.name,
+        category: finalCategory, // Use the final category (custom or predefined)
+        price: formData.price,
+        description: formData.description,
+        max_participants: formData.max_participants,
+        start_date: formData.start_date,
+        end_date: formData.end_date,
+        // Set default values for optional fields
         info_points: formData.info_points 
           ? formData.info_points.split(',').map(point => point.trim()).filter(point => point.length > 0)
-          : [],
+          : ['No Info Provided'],
+        venue: formData.venue.trim() || 'Not Specified',
         is_active: true,
         updated_at: new Date().toISOString()
       };
@@ -249,19 +269,13 @@ export default function AdminEventManagement() {
         console.log('Updating event with ID:', editingEvent.id);
         const updatedEvent = await eventService.updateEvent(editingEvent.id, eventData);
         console.log('Update successful:', updatedEvent);
-        toast({
-          title: 'Success',
-          description: 'Event updated successfully'
-        });
+        toast.success(`Event "${formData.name}" updated successfully!`);
       } else {
         // Create new event
         console.log('Creating new event...');
         const newEvent = await eventService.createEvent(eventData);
         console.log('Create successful:', newEvent);
-        toast({
-          title: 'Success',
-          description: 'Event created successfully'
-        });
+        toast.success(`Event "${formData.name}" created successfully!`);
       }
 
       setIsDialogOpen(false);
@@ -277,11 +291,7 @@ export default function AdminEventManagement() {
         errorMessage = JSON.stringify(error);
       }
       
-      toast({
-        title: 'Error',
-        description: `${editingEvent ? 'Failed to update event' : 'Failed to create event'}: ${errorMessage}`,
-        variant: 'destructive'
-      });
+      toast.error(`${editingEvent ? 'Failed to update event' : 'Failed to create event'}: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -303,7 +313,7 @@ export default function AdminEventManagement() {
   };
 
   // Show loading while checking authentication
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-[#0A0F1A] text-white flex items-center justify-center">
         <div className="text-center">
@@ -312,11 +322,6 @@ export default function AdminEventManagement() {
         </div>
       </div>
     );
-  }
-
-  // Don't render if not authenticated or not admin (will redirect)
-  if (!session || !user || !user.isAdmin) {
-    return null;
   }
 
   return (
@@ -392,7 +397,22 @@ export default function AdminEventManagement() {
               >
                 All Categories
               </Button>
+              {/* Predefined categories */}
               {['Cultural', 'Sports', 'Fine Arts', 'Literary', 'Academic'].map((category) => (
+                <Button
+                  key={category}
+                  variant={selectedCategory === category ? 'default' : 'outline'}
+                  onClick={() => setSelectedCategory(category)}
+                  className={selectedCategory === category ? 'bg-cyan-500' : 'border-slate-600 text-gray-300'}
+                >
+                  {category}
+                </Button>
+              ))}
+              {/* Custom categories from existing events */}
+              {Array.from(new Set(events
+                .map(event => event.category)
+                .filter(category => !['Cultural', 'Sports', 'Fine Arts', 'Literary', 'Academic'].includes(category))
+              )).map((category) => (
                 <Button
                   key={category}
                   variant={selectedCategory === category ? 'default' : 'outline'}
@@ -457,46 +477,43 @@ export default function AdminEventManagement() {
                         {event.description}
                       </p>
                       
-                      {event.info_points && event.info_points.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-gray-400 text-xs font-semibold">Event Details:</p>
                         <div className="space-y-1">
-                          <p className="text-gray-400 text-xs font-semibold">Event Details:</p>
-                          <div className="space-y-1">
-                            {event.info_points.slice(0, 3).map((point, index) => (
-                              <div key={index} className="flex items-start space-x-2">
-                                <div className="w-1 h-1 bg-cyan-400 rounded-full flex-shrink-0 mt-2"></div>
-                                <span className="text-gray-400 text-xs leading-relaxed">{point}</span>
-                              </div>
-                            ))}
-                            {event.info_points.length > 3 && (
-                              <p className="text-gray-500 text-xs">+{event.info_points.length - 3} more...</p>
-                            )}
-                          </div>
+                          {(event.info_points && event.info_points.length > 0 ? event.info_points : ['No Info Provided']).slice(0, 3).map((point, index) => (
+                            <div key={index} className="flex items-start space-x-2">
+                              <div className="w-1 h-1 bg-cyan-400 rounded-full flex-shrink-0 mt-2"></div>
+                              <span className="text-gray-400 text-xs leading-relaxed">{point}</span>
+                            </div>
+                          ))}
+                          {event.info_points && event.info_points.length > 3 && (
+                            <p className="text-gray-500 text-xs">+{event.info_points.length - 3} more...</p>
+                          )}
                         </div>
-                      )}
+                      </div>
                       
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center text-green-400">
                           <span className="font-bold">₹{event.price}</span>
                         </div>
-                        {event.max_participants && (
-                          <div className="flex items-center text-gray-400">
-                            <Users className="w-4 h-4 mr-1" />
-                            <span>{event.max_participants} max</span>
-                          </div>
-                        )}
+                        <div className="flex items-center text-gray-400">
+                          <Users className="w-4 h-4 mr-1" />
+                          <span>{event.max_participants || 50} max</span>
+                        </div>
                       </div>
 
-                      {event.venue && (
-                        <div className="flex items-center text-gray-400 text-sm">
-                          <MapPin className="w-4 h-4 mr-1" />
-                          <span>{event.venue}</span>
-                        </div>
-                      )}
+                      <div className="flex items-center text-gray-400 text-sm">
+                        <MapPin className="w-4 h-4 mr-1" />
+                        <span>{event.venue || 'Not Specified'}</span>
+                      </div>
 
                       {event.start_date && (
                         <div className="flex items-center text-gray-400 text-sm">
                           <Calendar className="w-4 h-4 mr-1" />
                           <span>{new Date(event.start_date).toLocaleDateString()}</span>
+                          {event.end_date && (
+                            <span className="ml-2">- {new Date(event.end_date).toLocaleDateString()}</span>
+                          )}
                         </div>
                       )}
                     </div>
@@ -538,7 +555,7 @@ export default function AdminEventManagement() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="category" className="text-gray-300">Category *</Label>
-                <Select value={formData.category} onValueChange={(value: any) => setFormData({...formData, category: value})}>
+                <Select value={formData.category} onValueChange={(value: any) => setFormData({...formData, category: value, customCategory: value !== 'Other' ? '' : formData.customCategory})}>
                   <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
                     <SelectValue />
                   </SelectTrigger>
@@ -548,8 +565,21 @@ export default function AdminEventManagement() {
                     <SelectItem value="Fine Arts">Fine Arts</SelectItem>
                     <SelectItem value="Literary">Literary</SelectItem>
                     <SelectItem value="Academic">Academic</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
+                {/* Custom Category Input - Only show when "Other" is selected */}
+                {formData.category === 'Other' && (
+                  <div className="mt-2">
+                    <Input
+                      placeholder="Enter custom category name"
+                      value={formData.customCategory}
+                      onChange={(e) => setFormData({...formData, customCategory: e.target.value})}
+                      className="bg-slate-700 border-slate-600 text-white"
+                      required
+                    />
+                  </div>
+                )}
               </div>
               <div>
                 <Label htmlFor="price" className="text-gray-300">Price (₹) *</Label>
@@ -587,7 +617,7 @@ export default function AdminEventManagement() {
                 placeholder="Enter bullet points separated by commas (e.g., First point, Second point, Third point)"
               />
               <p className="text-xs text-gray-500 mt-1">
-                These will be displayed as bullet points below the description
+                Optional - will show &quot;No Info Provided&quot; if left blank
               </p>
             </div>
 
@@ -600,16 +630,22 @@ export default function AdminEventManagement() {
                   value={formData.venue}
                   onChange={(e) => setFormData({...formData, venue: e.target.value})}
                   className="bg-slate-700 border-slate-600 text-white"
+                  placeholder="Enter venue or leave blank for 'Not Specified'"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Optional - will show &quot;Not Specified&quot; if left blank
+                </p>
               </div>
               <div>
-                <Label htmlFor="max_participants" className="text-gray-300">Max Participants</Label>
+                <Label htmlFor="max_participants" className="text-gray-300">Max Participants *</Label>
                 <Input
                   id="max_participants"
                   type="number"
+                  min="1"
                   value={formData.max_participants}
                   onChange={(e) => setFormData({...formData, max_participants: parseInt(e.target.value) || 50})}
                   className="bg-slate-700 border-slate-600 text-white"
+                  required
                 />
               </div>
             </div>
@@ -617,23 +653,25 @@ export default function AdminEventManagement() {
             {/* Dates */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="start_date" className="text-gray-300">Start Date</Label>
+                <Label htmlFor="start_date" className="text-gray-300">Start Date *</Label>
                 <Input
                   id="start_date"
                   type="datetime-local"
                   value={formData.start_date}
                   onChange={(e) => setFormData({...formData, start_date: e.target.value})}
                   className="bg-slate-700 border-slate-600 text-white"
+                  required
                 />
               </div>
               <div>
-                <Label htmlFor="end_date" className="text-gray-300">End Date</Label>
+                <Label htmlFor="end_date" className="text-gray-300">End Date *</Label>
                 <Input
                   id="end_date"
                   type="datetime-local"
                   value={formData.end_date}
                   onChange={(e) => setFormData({...formData, end_date: e.target.value})}
                   className="bg-slate-700 border-slate-600 text-white"
+                  required
                 />
               </div>
             </div>

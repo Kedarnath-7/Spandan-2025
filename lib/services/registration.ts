@@ -1,5 +1,4 @@
 import { supabase } from '@/lib/supabase';
-import { Payment } from '@/lib/types';
 
 export interface EventRegistrationData {
   eventIds: string[];
