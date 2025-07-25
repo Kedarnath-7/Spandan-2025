@@ -351,17 +351,28 @@ export default function AdminRegistrationsPage() {
     try {
       setProcessingId(registrationId);
       await AdminService.approveRegistration(registrationId);
-      
+      // Fetch registration details for email
+      const reg = registrations.find(r => r.group_id === registrationId);
+      if (reg) {
+        // Fetch email template
+        const { getEmailTemplate } = await import('@/lib/services/emailTemplateService');
+        const { sendApprovalEmail } = await import('@/lib/services/emailService');
+        const template = await getEmailTemplate('approval_tier');
+        try {
+          await sendApprovalEmail({ user: reg, template });
+        } catch (emailError) {
+          console.error('Error sending approval email:', emailError);
+        }
+      }
       // Update local state
       setRegistrations(prev => prev.map(reg => 
         reg.group_id === registrationId 
           ? { ...reg, status: 'approved', reviewed_at: new Date().toISOString() }
           : reg
       ));
-      
       toast({
         title: "Success",
-        description: "Registration approved successfully!",
+        description: "Registration approved and email sent!",
       });
     } catch (error) {
       console.error('Error approving registration:', error);

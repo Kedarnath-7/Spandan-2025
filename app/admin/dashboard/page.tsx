@@ -234,7 +234,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* Quick Actions */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
             <Link href="/admin/registrations">
               <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm hover:bg-slate-700/50 transition-all duration-300 cursor-pointer h-full">
                 <CardHeader className="text-center">
@@ -294,6 +294,22 @@ export default function AdminDashboard() {
                   </CardTitle>
                   <CardDescription className="text-gray-300 text-sm">
                     Download registration reports
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
+            {/* Email Management Card */}
+            <Link href="/admin/email">
+              <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm hover:bg-blue-700/50 transition-all duration-300 cursor-pointer h-full">
+                <CardHeader className="text-center">
+                  <div className="mx-auto w-12 h-12 bg-blue-600/20 rounded-full flex items-center justify-center mb-3">
+                    <Mail className="w-6 h-6 text-blue-400" />
+                  </div>
+                  <CardTitle className="text-white text-lg">
+                    Email Management
+                  </CardTitle>
+                  <CardDescription className="text-gray-300 text-sm">
+                    Manage & Send Emails
                   </CardDescription>
                 </CardHeader>
               </Card>

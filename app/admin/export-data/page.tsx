@@ -66,6 +66,7 @@ export default function ExportDataPage() {
   // Load quick stats and event options
   useEffect(() => {
     loadDashboardData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadDashboardData = async () => {
@@ -335,7 +336,7 @@ export default function ExportDataPage() {
                   <div className="text-center">
                     <TrendingUp className="w-6 h-6 text-orange-400 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-white">{stats.todayRegistrations}</p>
-                    <p className="text-sm text-gray-300">Today's Registrations</p>
+                    <p className="text-sm text-gray-300">Today&#39;s Registrations</p>
                   </div>
                 </CardContent>
               </Card>

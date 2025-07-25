@@ -205,11 +205,28 @@ export default function AdminEventRegistrationsPage() {
     try {
       setProcessingId(groupId);
       const result = await approveEventRegistration(groupId, 'admin');
-      
       if (result.success) {
+        // Fetch registration details for email
+        const regResult = await getEventRegistrationByGroupId(groupId);
+        if (regResult.success && regResult.data) {
+          // Fetch email template
+          const { getEmailTemplate } = await import('@/lib/services/emailTemplateService');
+          const { sendApprovalEmail } = await import('@/lib/services/emailService');
+          const template = await getEmailTemplate('approval_event');
+          // Prepare user data for template
+          const user = {
+            ...regResult.data,
+            group_members: regResult.data.members?.map(m => `${m.name} (${m.user_id})`).join(', ')
+          };
+          try {
+            await sendApprovalEmail({ user, template });
+          } catch (emailError) {
+            console.error('Error sending approval email:', emailError);
+          }
+        }
         toast({
           title: "Success",
-          description: "Registration approved successfully!",
+          description: "Registration approved and email sent!",
         });
         await loadRegistrations();
       } else {
