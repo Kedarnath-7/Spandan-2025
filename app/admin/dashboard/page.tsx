@@ -283,19 +283,21 @@ export default function AdminDashboard() {
               </Card>
             </Link>
 
-            <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm hover:bg-slate-700/50 transition-all duration-300 cursor-pointer h-full">
-              <CardHeader className="text-center">
-                <div className="mx-auto w-12 h-12 bg-green-600/20 rounded-full flex items-center justify-center mb-3">
-                  <Download className="w-6 h-6 text-green-400" />
-                </div>
-                <CardTitle className="text-white text-lg">
-                  Export Data
-                </CardTitle>
-                <CardDescription className="text-gray-300 text-sm">
-                  Download registration reports
-                </CardDescription>
-              </CardHeader>
-            </Card>
+            <Link href="/admin/export-data">
+              <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm hover:bg-slate-700/50 transition-all duration-300 cursor-pointer h-full">
+                <CardHeader className="text-center">
+                  <div className="mx-auto w-12 h-12 bg-green-600/20 rounded-full flex items-center justify-center mb-3">
+                    <Download className="w-6 h-6 text-green-400" />
+                  </div>
+                  <CardTitle className="text-white text-lg">
+                    Export Data
+                  </CardTitle>
+                  <CardDescription className="text-gray-300 text-sm">
+                    Download registration reports
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
           </div>
 
           {/* Recent Registrations */}

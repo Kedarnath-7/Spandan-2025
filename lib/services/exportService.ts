@@ -207,6 +207,59 @@ class ExportService {
       throw error;
     }
   }
+
+  /**
+   * Export event-specific registrations to CSV using event_registration_view
+   */
+  async exportEventSpecificCSV(eventName: string): Promise<void> {
+    try {
+      const { data, error } = await supabase
+        .from('event_registration_view')
+        .select('*')
+        .eq('event_name', eventName)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching event-specific data:', error);
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        throw new Error(`No registrations found for event: ${eventName}`);
+      }
+      
+      // Transform data for better CSV column names
+      const csvData = data.map(item => ({
+        'Group ID': item.group_id,
+        'User ID': item.user_id,
+        'Name': item.name,
+        'Email': item.email,
+        'College': item.college,
+        'Phone': item.phone,
+        'College Location': item.college_location,
+        'Event Name': item.event_name,
+        'Event Category': item.event_category,
+        'Event Price': item.event_price,
+        'Member Count': item.member_count,
+        'Amount': item.amount,
+        'Total Amount': item.total_amount,
+        'Status': item.status,
+        'Payment Transaction ID': item.payment_transaction_id,
+        'Reviewed By': item.reviewed_by || '',
+        'Reviewed At': item.reviewed_at || '',
+        'Rejection Reason': item.rejection_reason || '',
+        'Created At': item.created_at,
+        'Updated At': item.updated_at
+      }));
+
+      // Create safe filename from event name
+      const safeEventName = eventName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      this.generateCSV(csvData, `${safeEventName}_registrations`);
+    } catch (error) {
+      console.error('Export event-specific CSV error:', error);
+      throw error;
+    }
+  }
 }
 
 export const exportService = new ExportService();
