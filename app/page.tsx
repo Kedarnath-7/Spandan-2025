@@ -4,11 +4,70 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Calendar, MapPin, Users, Phone, Mail, Zap } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Calendar, MapPin, Users, Phone, Mail, Zap, FileText, Play, X, Instagram } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { useToast } from '@/hooks/use-toast';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 
 export default function HomePage() {
+  const { toast } = useToast();
+  const [showVideoModal, setShowVideoModal] = useState(false);
+  const [videoUrl, setVideoUrl] = useState<string>('');
+  const [loadingVideo, setLoadingVideo] = useState(false);
+
+  // Handle brochure download using Google Drive
+  const handleDownloadBrochure = () => {
+    try {
+      // Google Drive direct download URL
+      // Replace 'YOUR_FILE_ID' with your actual Google Drive file ID
+      // Get this from your Google Drive share link: https://drive.google.com/file/d/YOUR_FILE_ID/view?usp=sharing
+      const googleDriveFileId = '1l82Wm4sg3qsThH-a0Rl5QJ0Uz2fE-yv6'; // Replace with your file ID
+      const googleDriveDownloadUrl = `https://drive.google.com/uc?export=download&id=${googleDriveFileId}`;
+      
+      // Create a temporary link and trigger download
+      const link = document.createElement('a');
+      link.href = googleDriveDownloadUrl;
+      link.download = 'Spandan-2025-Brochure.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "Download Started",
+        description: "Spandan 2025 brochure download has started!",
+      });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast({
+        title: "Download Failed",
+        description: "Please try again or contact support.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle video modal using Google Drive
+  const handleOpenVideo = () => {
+    try {
+      // Google Drive direct stream URL for video playback
+      const googleDriveVideoId = '1OW6L657tNxqoPDyY4PBPV44jcpXvT8Nj';
+      // Use preview URL for streaming instead of download URL
+      const googleDriveVideoUrl = `https://drive.google.com/file/d/${googleDriveVideoId}/preview`;
+      
+      setVideoUrl(googleDriveVideoUrl);
+      setShowVideoModal(true);
+    } catch (error) {
+      console.error('Video error:', error);
+      toast({
+        title: "Video Unavailable",
+        description: "Please try again later.",
+        variant: "destructive",
+      });
+    }
+  };
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 relative overflow-hidden">
       {/* Comic book style background elements - positioned exactly as in design */}
@@ -110,16 +169,22 @@ export default function HomePage() {
 
           {/* After Movie CTA - exact styling from design */}
           <div className="mb-12">
-            <div className="bg-cyan-500/20 border-2 border-cyan-400 rounded-lg p-6 mb-4 backdrop-blur-sm hover:bg-cyan-500/30 transition-all duration-300 cursor-pointer transform hover:scale-105">
-              <p className="text-cyan-300 text-xl font-bold tracking-wide">
-                CHECK OUT THE SPANDAN 2024 AFTER MOVIE HERE!
-              </p>
+            <div 
+              onClick={handleOpenVideo}
+              className="bg-cyan-500/20 border-2 border-cyan-400 rounded-lg p-6 mb-4 backdrop-blur-sm hover:bg-cyan-500/30 transition-all duration-300 cursor-pointer transform hover:scale-105 group"
+            >
+              <div className="flex items-center justify-center gap-3">
+                <Play className="w-8 h-8 text-cyan-300 group-hover:text-white transition-colors duration-300" />
+                <p className="text-cyan-300 group-hover:text-white text-xl font-bold tracking-wide transition-colors duration-300">
+                  CHECK OUT THE SPANDAN 2024 AFTER MOVIE HERE!
+                </p>
+              </div>
             </div>
-            <p className="text-gray-400 text-sm tracking-wide">(CLICK ON THE LOGO)</p>
+            <p className="text-gray-400 text-sm tracking-wide">(CLICK TO PLAY VIDEO)</p>
           </div>
 
           {/* Action Buttons - matching design styling */}
-          <div className="flex flex-col sm:flex-row gap-6 justify-center">
+          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
             <Link href="/register">
               <Button size="lg" className="bg-cyan-500 hover:bg-cyan-600 text-white px-8 py-4 text-lg font-bold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-cyan-500/25 border-2 border-cyan-400 rounded-lg tracking-wide">
                 REGISTER NOW
@@ -130,11 +195,112 @@ export default function HomePage() {
                 VIEW EVENTS
               </Button>
             </Link>
+            <a 
+              href="#" 
+              onClick={(e) => {
+                e.preventDefault();
+                handleDownloadBrochure();
+              }}
+              className="inline-block"
+            >
+              <Button size="lg" variant="outline" className="border-2 border-yellow-400 text-yellow-600 hover:bg-yellow-400 hover:text-slate-900 px-8 py-4 text-lg font-bold transform hover:scale-105 transition-all duration-300 rounded-lg tracking-wide">
+                <FileText className="w-5 h-5 mr-2" />
+                DOWNLOAD BROCHURE
+              </Button>
+            </a>
+          </div>
+
+          {/* Instagram Follow Section */}
+          <div className="mt-8 flex justify-center">
+            <a
+              href="https://www.instagram.com/jipmer_spandan?igsh=OXZnOHJ1MG9nMmdk"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group"
+            >
+              <div className="bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 p-1 rounded-lg hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-purple-500/25">
+                <div className="bg-slate-900 px-6 py-3 rounded-md flex items-center gap-3">
+                  <Instagram className="w-6 h-6 text-pink-400 group-hover:text-white transition-colors duration-300" />
+                  <span className="text-pink-400 group-hover:text-white font-bold text-lg transition-colors duration-300">
+                    FOLLOW @jipmer_spandan FOR MORE UPDATES
+                  </span>
+                </div>
+              </div>
+            </a>
           </div>
         </div>
       </section>
 
       <Footer />
+
+      {/* Video Modal */}
+      <Dialog open={showVideoModal} onOpenChange={setShowVideoModal}>
+        <DialogContent className="max-w-4xl bg-slate-900 border-slate-700">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center justify-between">
+              <span>Spandan 2024 After Movie</span>
+              <button 
+                onClick={() => {
+                  setShowVideoModal(false);
+                  setVideoUrl('');
+                }}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="aspect-video bg-black rounded-lg overflow-hidden">
+            {loadingVideo ? (
+              <div className="w-full h-full flex items-center justify-center">
+                <div className="text-white">Loading video...</div>
+              </div>
+            ) : videoUrl ? (
+              <iframe
+                src={videoUrl}
+                className="w-full h-full"
+                frameBorder="0"
+                allow="autoplay; encrypted-media"
+                allowFullScreen
+                title="Spandan 2024 After Movie"
+                onLoad={() => setLoadingVideo(false)}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-gray-400">
+                <div className="text-center">
+                  <Play className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <p>Video not available</p>
+                  <p className="text-sm mt-2">Upload your files to Google Drive and update the file IDs in the code</p>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex justify-center gap-3 mt-4">
+            <Button
+              onClick={() => setShowVideoModal(false)}
+              variant="outline"
+              className="border-gray-600 text-gray-300 hover:bg-gray-700"
+            >
+              Close
+            </Button>
+            {videoUrl && (
+              <Button
+                onClick={() => {
+                  // Convert preview URL back to view URL for opening in new tab
+                  const fileId = videoUrl.split('/d/')[1]?.split('/preview')[0];
+                  const viewUrl = `https://drive.google.com/file/d/${fileId}/view`;
+                  window.open(viewUrl, '_blank');
+                }}
+                className="bg-cyan-600 hover:bg-cyan-700"
+              >
+                Open in Google Drive
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

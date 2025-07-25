@@ -177,13 +177,42 @@ export interface EventRegistrationMember {
 // Combined view for event registration admin dashboard
 export interface EventRegistrationView {
   group_id: string;
+  user_id: string;
+  name: string;
+  email: string;
+  college: string;
+  phone: string;
+  college_location: string;
+  event_name: string;
+  event_category: string;
+  event_price: number;
+  member_count: number;
+  amount: number; // Individual member amount (same as event_price)
+  total_amount: number;
+  status: 'pending' | 'approved' | 'rejected';
+  payment_transaction_id: string;
+  reviewed_by?: string;
+  reviewed_at?: string;
+  rejection_reason?: string;
+  created_at: string;
+  updated_at: string;
+  // Additional formatted fields from the view
+  status_display: string;
+  formatted_created_at: string;
+  formatted_reviewed_at?: string;
+  formatted_updated_at?: string;
+}
+
+// Admin UI interface for event registration list (different from CSV export view)
+export interface EventRegistrationAdmin {
+  group_id: string;
   event_id: string;
   event_name: string;
   event_category: string;
   event_price: number;
-  contact_name: string;
-  contact_email: string;
-  contact_phone: string;
+  leader_name: string;
+  leader_email: string;
+  leader_phone: string;
   contact_user_id: string;
   member_count: number;
   total_amount: number;

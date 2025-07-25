@@ -43,6 +43,11 @@ export default function Footer({ ctaText = "THE END... OR IS IT JUST THE BEGINNI
                 </Link>
               </li>
               <li>
+                <Link href="/registration-status" className="hover:text-cyan-400 transition-colors duration-300">
+                  Registration Status
+                </Link>
+              </li>
+              <li>
                 <Link href="/about" className="hover:text-cyan-400 transition-colors duration-300">
                   About JIPMER
                 </Link>
@@ -61,11 +66,11 @@ export default function Footer({ ctaText = "THE END... OR IS IT JUST THE BEGINNI
             <div className="space-y-3 text-gray-300 text-sm">
               <div className="flex items-center space-x-3">
                 <Mail className="w-4 h-4 text-cyan-400" />
-                <span>spandan2025@jipmer.edu.in</span>
+                <span>jsa.jipmer@gmail.com</span>
               </div>
               <div className="flex items-center space-x-3">
                 <Phone className="w-4 h-4 text-cyan-400" />
-                <span>+91 98765 43210</span>
+                <span>+91 9110570248</span>
               </div>
               <div className="flex items-start space-x-3">
                 <MapPin className="w-4 h-4 text-cyan-400 mt-0.5" />
@@ -84,15 +89,21 @@ export default function Footer({ ctaText = "THE END... OR IS IT JUST THE BEGINNI
           {/* Find Us Here */}
           <div>
             <h4 className="font-bold mb-4 text-cyan-400 tracking-wide">FIND US HERE</h4>
-            <div className="bg-gradient-to-br from-green-500 via-teal-500 to-blue-600 rounded-lg p-4 mb-4 relative cursor-pointer hover:scale-105 transition-transform duration-300 border border-cyan-400/30">
-              <div className="absolute inset-0 bg-black/10 rounded-lg"></div>
-              <div className="relative text-center">
-                <div className="w-8 h-8 bg-red-500 rounded-full mx-auto mb-2 flex items-center justify-center border-2 border-white">
-                  <div className="w-3 h-3 bg-white rounded-full"></div>
+            <a
+              href="https://maps.app.goo.gl/qwxdJDqnRKiEdF1u6?g_st=iw"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <div className="bg-gradient-to-br from-green-500 via-teal-500 to-blue-600 rounded-lg p-4 mb-4 relative cursor-pointer hover:scale-105 transition-transform duration-300 border border-cyan-400/30">
+                <div className="absolute inset-0 bg-black/10 rounded-lg"></div>
+                <div className="relative text-center">
+                  <div className="w-8 h-8 bg-red-500 rounded-full mx-auto mb-2 flex items-center justify-center border-2 border-white">
+                    <div className="w-3 h-3 bg-white rounded-full"></div>
+                  </div>
+                  <div className="text-white text-xs font-bold">JIPMER</div>
                 </div>
-                <div className="text-white text-xs font-bold">JIPMER</div>
               </div>
-            </div>
+            </a>
             <p className="text-gray-300 text-xs text-center">Click map to get directions</p>
           </div>
         </div>

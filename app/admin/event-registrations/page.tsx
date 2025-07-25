@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
+import { exportService } from '@/lib/services/exportService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,7 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 import {
   ArrowLeft,
   Search,
@@ -45,15 +46,16 @@ import {
   rejectEventRegistration,
   deleteEventRegistration 
 } from '@/lib/services/eventRegistrationService';
-import type { EventRegistrationView, EventRegistration, EventRegistrationMember } from '@/lib/types';
+import type { EventRegistrationAdmin, EventRegistration, EventRegistrationMember } from '@/lib/types';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 
 export default function AdminEventRegistrationsPage() {
   const router = useRouter();
+  const { toast } = useToast();
   
-  const [registrations, setRegistrations] = useState<EventRegistrationView[]>([]);
-  const [filteredRegistrations, setFilteredRegistrations] = useState<EventRegistrationView[]>([]);
+  const [registrations, setRegistrations] = useState<EventRegistrationAdmin[]>([]);
+  const [filteredRegistrations, setFilteredRegistrations] = useState<EventRegistrationAdmin[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [stats, setStats] = useState({
@@ -79,7 +81,7 @@ export default function AdminEventRegistrationsPage() {
   const [paymentProofUrl, setPaymentProofUrl] = useState<string>('');
 
   // Load registrations data with enhanced error handling and stats calculation
-  const loadRegistrations = async () => {
+  const loadRegistrations = useCallback(async () => {
     setLoadingData(true);
     try {
       console.log('Loading event registrations...');
@@ -93,29 +95,37 @@ export default function AdminEventRegistrationsPage() {
         // Update stats
         const newStats = {
           total: result.data.length,
-          pending: result.data.filter((r: EventRegistrationView) => r.status === 'pending').length,
-          approved: result.data.filter((r: EventRegistrationView) => r.status === 'approved').length,
-          rejected: result.data.filter((r: EventRegistrationView) => r.status === 'rejected').length,
+          pending: result.data.filter((r: EventRegistrationAdmin) => r.status === 'pending').length,
+          approved: result.data.filter((r: EventRegistrationAdmin) => r.status === 'approved').length,
+          rejected: result.data.filter((r: EventRegistrationAdmin) => r.status === 'rejected').length,
           totalRevenue: result.data
-            .filter((r: EventRegistrationView) => r.status === 'approved')
-            .reduce((sum: number, r: EventRegistrationView) => sum + (r.total_amount || 0), 0)
+            .filter((r: EventRegistrationAdmin) => r.status === 'approved')
+            .reduce((sum: number, r: EventRegistrationAdmin) => sum + (r.total_amount || 0), 0)
         };
         setStats(newStats);
       } else {
-        toast.error('Failed to load event registrations');
+        toast({
+          title: "Error",
+          description: "Failed to load event registrations",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error loading event registrations:', error);
-      toast.error('Failed to load event registrations. Please try again.');
+      toast({
+        title: "Error",
+        description: "Failed to load event registrations. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setLoadingData(false);
     }
-  };
+  }, [toast]);
 
   // Initial load
   useEffect(() => {
     loadRegistrations();
-  }, []);
+  }, [loadRegistrations]);
 
   // Filter and sort registrations
   useEffect(() => {
@@ -124,9 +134,9 @@ export default function AdminEventRegistrationsPage() {
     // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter(registration => 
-        (registration.contact_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (registration.contact_email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (registration.contact_phone || '').includes(searchTerm) ||
+        (registration.leader_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (registration.leader_email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (registration.leader_phone || '').includes(searchTerm) ||
         (registration.event_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (registration.group_id || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
@@ -150,7 +160,7 @@ export default function AdminEventRegistrationsPage() {
         case 'oldest':
           return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
         case 'name':
-          return (a.contact_name || '').localeCompare(b.contact_name || '');
+          return (a.leader_name || '').localeCompare(b.leader_name || '');
         case 'status':
           return (a.status || '').localeCompare(b.status || '');
         case 'amount':
@@ -173,11 +183,19 @@ export default function AdminEventRegistrationsPage() {
         setSelectedRegistration(result.data);
         setShowRegistrationDetails(true);
       } else {
-        toast.error('Failed to load registration details');
+        toast({
+          title: "Error",
+          description: "Failed to load registration details",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error loading registration details:', error);
-      toast.error('Error loading registration details');
+      toast({
+        title: "Error", 
+        description: "Error loading registration details",
+        variant: "destructive",
+      });
     } finally {
       setProcessingId(null);
     }
@@ -189,14 +207,25 @@ export default function AdminEventRegistrationsPage() {
       const result = await approveEventRegistration(groupId, 'admin');
       
       if (result.success) {
-        toast.success('Registration approved successfully!');
+        toast({
+          title: "Success",
+          description: "Registration approved successfully!",
+        });
         await loadRegistrations();
       } else {
-        toast.error('Failed to approve registration');
+        toast({
+          title: "Error",
+          description: "Failed to approve registration",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error approving registration:', error);
-      toast.error('Error approving registration');
+      toast({
+        title: "Error",
+        description: "Error approving registration",
+        variant: "destructive",
+      });
     } finally {
       setProcessingId(null);
     }
@@ -204,7 +233,11 @@ export default function AdminEventRegistrationsPage() {
 
   const handleReject = async () => {
     if (!selectedRegistration || !rejectionReason.trim()) {
-      toast.error('Please provide a rejection reason');
+      toast({
+        title: "Error",
+        description: "Please provide a rejection reason",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -217,16 +250,27 @@ export default function AdminEventRegistrationsPage() {
       );
       
       if (result.success) {
-        toast.success('Registration rejected successfully');
+        toast({
+          title: "Success",
+          description: "Registration rejected successfully",
+        });
         setShowRejectDialog(false);
         setRejectionReason('');
         await loadRegistrations();
       } else {
-        toast.error('Failed to reject registration');
+        toast({
+          title: "Error",
+          description: "Failed to reject registration",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error rejecting registration:', error);
-      toast.error('Error rejecting registration');
+      toast({
+        title: "Error",
+        description: "Error rejecting registration",
+        variant: "destructive",
+      });
     } finally {
       setProcessingId(null);
     }
@@ -236,7 +280,11 @@ export default function AdminEventRegistrationsPage() {
   const handleShowPaymentProof = async (screenshotPath: string) => {
     try {
       if (!screenshotPath) {
-        toast.error('No payment proof available');
+        toast({
+          title: "Error",
+          description: "No payment proof available",
+          variant: "destructive",
+        });
         return;
       }
 
@@ -249,49 +297,38 @@ export default function AdminEventRegistrationsPage() {
         setPaymentProofUrl(data.publicUrl);
         setShowPaymentProof(true);
       } else {
-        toast.error('Failed to load payment proof');
+        toast({
+          title: "Error",
+          description: "Failed to load payment proof",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error loading payment proof:', error);
-      toast.error('Error loading payment proof');
+      toast({
+        title: "Error",
+        description: "Error loading payment proof",
+        variant: "destructive",
+      });
     }
   };
 
-  // Export to CSV
-  const exportToCSV = () => {
-    const headers = [
-      'Group ID', 'Event Name', 'Category', 'Contact Name', 'Contact Email', 
-      'Contact Phone', 'Member Count', 'Total Amount', 'Transaction ID', 
-      'Status', 'Created At'
-    ];
-    
-    const csvData = filteredRegistrations.map(reg => [
-      reg.group_id,
-      reg.event_name,
-      reg.event_category,
-      reg.contact_name,
-      reg.contact_email,
-      reg.contact_phone,
-      reg.member_count,
-      reg.total_amount,
-      reg.payment_transaction_id,
-      reg.status,
-      new Date(reg.created_at).toLocaleDateString()
-    ]);
-
-    const csvContent = [headers, ...csvData]
-      .map(row => row.map(cell => `"${cell}"`).join(','))
-      .join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `event-registrations-${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  // Export to CSV using database view
+  const exportToCSV = async () => {
+    try {
+      await exportService.exportEventRegistrationsCSV();
+      toast({
+        title: "Export Successful",
+        description: "Event registration data has been exported to CSV.",
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to export event registration data. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Get status badge
@@ -342,7 +379,7 @@ export default function AdminEventRegistrationsPage() {
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
               <Button
-                onClick={() => router.push('/admin')}
+                onClick={() => router.push('/admin/dashboard')}
                 variant="outline"
                 className="border-cyan-400/30 text-cyan-400 hover:bg-cyan-400/10"
               >
@@ -544,8 +581,8 @@ export default function AdminEventRegistrationsPage() {
                         <div className="flex items-start justify-between">
                           <div>
                             <h3 className="text-lg font-semibold text-white">Group: {registration.group_id}</h3>
-                            <p className="text-gray-300">{registration.contact_name} (Leader)</p>
-                            <p className="text-sm text-gray-400 mt-1">{registration.contact_email}</p>
+                            <p className="text-gray-300">{registration.leader_name} (Leader)</p>
+                            <p className="text-sm text-gray-400 mt-1">{registration.leader_email}</p>
                           </div>
                           <div className="flex gap-2">
                             {getStatusBadge(registration.status)}
@@ -555,7 +592,7 @@ export default function AdminEventRegistrationsPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="flex items-center gap-2 text-gray-300">
                             <Phone className="w-4 h-4" />
-                            <span>{registration.contact_phone}</span>
+                            <span>{registration.leader_phone}</span>
                           </div>
                           <div className="flex items-center gap-2 text-gray-300">
                             <Users className="w-4 h-4" />
@@ -622,7 +659,10 @@ export default function AdminEventRegistrationsPage() {
                                         className="p-1 h-6 w-6 text-gray-400 hover:text-white hover:bg-gray-700"
                                         onClick={() => {
                                           navigator.clipboard.writeText(registration.payment_transaction_id);
-                                          toast.success('Transaction ID copied!');
+                                          toast({
+                                            title: "Success",
+                                            description: "Transaction ID copied!",
+                                          });
                                         }}
                                       >
                                         <Copy className="h-3 w-3" />
@@ -749,8 +789,8 @@ export default function AdminEventRegistrationsPage() {
                       <p className="text-white font-semibold">{selectedRegistration.event_name}</p>
                     </div>
                     <div>
-                      <span className="text-gray-400">Event ID:</span>
-                      <p className="text-white">{selectedRegistration.event_id}</p>
+                      <span className="text-gray-400">Group ID:</span>
+                      <p className="text-white">{selectedRegistration.group_id}</p>
                     </div>
                     <div>
                       <span className="text-gray-400">Price per Member:</span>
@@ -764,10 +804,10 @@ export default function AdminEventRegistrationsPage() {
                 </CardContent>
               </Card>
 
-              {/* Contact Information */}
+              {/* Leader Information */}
               <Card className="bg-slate-700/50 border-slate-600">
                 <CardHeader>
-                  <CardTitle className="text-lg text-white">Contact Information</CardTitle>
+                  <CardTitle className="text-lg text-white">Leader Information</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4 text-sm">
@@ -806,16 +846,16 @@ export default function AdminEventRegistrationsPage() {
                             <p className="text-white font-semibold">{member.name}</p>
                           </div>
                           <div>
+                            <span className="text-gray-400">User ID:</span>
+                            <p className="text-white font-mono text-xs">{member.user_id}</p>
+                          </div>
+                          <div>
                             <span className="text-gray-400">Email:</span>
                             <p className="text-white">{member.email}</p>
                           </div>
                           <div>
                             <span className="text-gray-400">Phone:</span>
                             <p className="text-white">{member.phone}</p>
-                          </div>
-                          <div>
-                            <span className="text-gray-400">College:</span>
-                            <p className="text-white">{member.college}</p>
                           </div>
                         </div>
                       </div>

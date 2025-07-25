@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import { EventRegistration, EventRegistrationMember, EventRegistrationView } from '@/lib/types'
+import { EventRegistration, EventRegistrationMember, EventRegistrationAdmin } from '@/lib/types'
 
 // Upload payment screenshot to Supabase storage
 const uploadPaymentScreenshot = async (
@@ -162,10 +162,10 @@ export const createEventRegistration = async (
   }
 }
 
-// Get all event registrations for admin
+// Get all event registrations for admin (using original table format for admin UI)
 export const getEventRegistrations = async (): Promise<{
   success: boolean;
-  data?: EventRegistrationView[];
+  data?: EventRegistrationAdmin[];
   error?: string;
 }> => {
   try {
@@ -200,15 +200,15 @@ export const getEventRegistrations = async (): Promise<{
       return { success: false, error: error.message }
     }
 
-    const formattedData: EventRegistrationView[] = data.map(item => ({
+    const formattedData = data.map(item => ({
       group_id: item.group_id,
       event_id: item.event_id,
       event_name: item.event_name,
       event_category: (item as any).events.category,
       event_price: item.event_price,
-      contact_name: item.contact_name,
-      contact_email: item.contact_email,
-      contact_phone: item.contact_phone,
+      leader_name: item.contact_name,
+      leader_email: item.contact_email,
+      leader_phone: item.contact_phone,
       contact_user_id: item.contact_user_id,
       member_count: item.member_count,
       total_amount: item.total_amount,

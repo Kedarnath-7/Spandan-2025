@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
+import { exportService } from '@/lib/services/exportService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 import {
   ArrowLeft,
   Search,
@@ -33,7 +34,8 @@ import {
   RefreshCw,
   AlertTriangle,
   X,
-  Copy
+  Copy,
+  Eye
 } from 'lucide-react';
 import { AdminService } from '@/lib/services/adminService';
 import type { RegistrationView } from '@/lib/types';
@@ -42,6 +44,7 @@ import Footer from '@/components/Footer';
 
 export default function AdminRegistrationsPage() {
   const router = useRouter();
+  const { toast } = useToast();
   
   const [registrations, setRegistrations] = useState<RegistrationView[]>([]);
   const [filteredRegistrations, setFilteredRegistrations] = useState<RegistrationView[]>([]);
@@ -63,22 +66,110 @@ export default function AdminRegistrationsPage() {
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [imageLoadError, setImageLoadError] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
+  
+  // Registration details modal state
+  const [selectedRegistration, setSelectedRegistration] = useState<RegistrationView | null>(null);
+  const [showRegistrationDetails, setShowRegistrationDetails] = useState(false);
+  const [groupMembers, setGroupMembers] = useState<any[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
 
   // Function to copy text to clipboard
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success('Copied to clipboard!');
+      toast({
+        title: "Success",
+        description: "Copied to clipboard!",
+      });
     } catch (err) {
-      toast.error('Failed to copy to clipboard');
+      toast({
+        title: "Error",
+        description: "Failed to copy to clipboard",
+        variant: "destructive",
+      });
     }
   };
+
+  // Function to fetch group members
+  const fetchGroupMembers = async (groupId: string) => {
+    setLoadingMembers(true);
+    try {
+      const { data, error } = await supabase
+        .from('group_members')
+        .select('*')
+        .eq('group_id', groupId)
+        .order('member_order');
+
+      if (error) throw error;
+      
+      console.log('Group members data:', data); // Debug log to see what fields we get
+      setGroupMembers(data || []);
+    } catch (error) {
+      console.error('Error fetching group members:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load group members",
+        variant: "destructive",
+      });
+      setGroupMembers([]);
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
+  // Handle view details with group members
+  const handleViewDetails = async (registration: RegistrationView) => {
+    setSelectedRegistration(registration);
+    setShowRegistrationDetails(true);
+    await fetchGroupMembers(registration.group_id);
+  };
+
+  // Load registrations using AdminService
+  const loadRegistrations = useCallback(async () => {
+    try {
+      setLoadingData(true);
+      const result = await AdminService.getAllRegistrations();
+      
+      if (result.success && result.data) {
+        setRegistrations(result.data);
+        
+        // Update stats
+        const newStats = {
+          total: result.data.length,
+          pending: result.data.filter((r: RegistrationView) => r.status === 'pending').length,
+          approved: result.data.filter((r: RegistrationView) => r.status === 'approved').length,
+          rejected: result.data.filter((r: RegistrationView) => r.status === 'rejected').length,
+          totalRevenue: result.data.reduce((sum: number, r: RegistrationView) => sum + (r.total_amount || 0), 0)
+        };
+        setStats(newStats);
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to load registrations",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error loading registrations:', error);
+      toast({
+        title: "Error", 
+        description: "Failed to load registrations. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingData(false);
+    }
+  }, [toast]);
 
   // Check authentication using simple localStorage session
   useEffect(() => {
     const adminSession = localStorage.getItem('adminSession');
     if (!adminSession) {
-      toast.error('Please login to access admin panel');
+      toast({
+        title: "Authentication Required",
+        description: "Please login to access admin panel",
+        variant: "destructive",
+      });
       router.push('/admin');
       return;
     }
@@ -89,13 +180,17 @@ export default function AdminRegistrationsPage() {
 
     if (currentTime - session.loginTime > sessionDuration) {
       localStorage.removeItem('adminSession');
-      toast.error('Session expired. Please login again.');
+      toast({
+        title: "Session Expired",
+        description: "Session expired. Please login again.",
+        variant: "destructive",
+      });
       router.push('/admin');
       return;
     }
 
     loadRegistrations();
-  }, [router]);
+  }, [router, loadRegistrations, toast]);
 
   // Helper function to get the correct Supabase storage URL
   const getPaymentScreenshotUrl = (filename: string | null): string | null => {
@@ -141,27 +236,45 @@ export default function AdminRegistrationsPage() {
         
       if (error) {
         console.error('Storage bucket error:', error);
-        toast.error(`Cannot access storage bucket: ${error.message}`);
+        toast({
+          title: "Error",
+          description: `Cannot access storage bucket: ${error.message}`,
+          variant: "destructive",
+        });
         return;
       }
       
       console.log('Files in spandan-assets/payment-screenshots:', files);
       
       if (files && files.length > 0) {
-        toast.success(`Found ${files.length} files in storage bucket`);
+        toast({
+          title: "Success",
+          description: `Found ${files.length} files in storage bucket`,
+        });
       } else {
-        toast.success('Storage bucket is accessible but empty');
+        toast({
+          title: "Success",
+          description: "Storage bucket is accessible but empty",
+        });
       }
     } catch (error) {
       console.error('Storage test failed:', error);
-      toast.error('Could not access storage bucket');
+      toast({
+        title: "Error",
+        description: "Could not access storage bucket",
+        variant: "destructive",
+      });
     }
   };
 
   // Function to view payment screenshot
   const viewPaymentScreenshot = async (filename: string | null) => {
     if (!filename) {
-      toast.error('No payment screenshot available');
+      toast({
+        title: "Error",
+        description: "No payment screenshot available",
+        variant: "destructive",
+      });
       return;
     }
     
@@ -185,38 +298,14 @@ export default function AdminRegistrationsPage() {
       setImageLoading(true); // Set loading state
       setImageModalOpen(true);
     } else {
-      toast.error('Could not generate image URL');
+      toast({
+        title: "Error",
+        description: "Could not generate image URL",
+        variant: "destructive",
+      });
     }
   };
 
-  // Load registrations using AdminService
-  const loadRegistrations = async () => {
-    try {
-      setLoadingData(true);
-      const result = await AdminService.getAllRegistrations();
-      
-      if (result.success && result.data) {
-        setRegistrations(result.data);
-        
-        // Update stats
-        const newStats = {
-          total: result.data.length,
-          pending: result.data.filter((r: RegistrationView) => r.status === 'pending').length,
-          approved: result.data.filter((r: RegistrationView) => r.status === 'approved').length,
-          rejected: result.data.filter((r: RegistrationView) => r.status === 'rejected').length,
-          totalRevenue: result.data.reduce((sum: number, r: RegistrationView) => sum + (r.total_amount || 0), 0)
-        };
-        setStats(newStats);
-      } else {
-        toast.error('Failed to load registrations');
-      }
-    } catch (error) {
-      console.error('Error loading registrations:', error);
-      toast.error('Failed to load registrations. Please try again.');
-    } finally {
-      setLoadingData(false);
-    }
-  };
 
   // Filter and sort registrations
   useEffect(() => {
@@ -270,10 +359,17 @@ export default function AdminRegistrationsPage() {
           : reg
       ));
       
-      toast.success('Registration approved successfully!');
+      toast({
+        title: "Success",
+        description: "Registration approved successfully!",
+      });
     } catch (error) {
       console.error('Error approving registration:', error);
-      toast.error('Failed to approve registration. Please try again.');
+      toast({
+        title: "Error",
+        description: "Failed to approve registration. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setProcessingId(null);
     }
@@ -292,10 +388,17 @@ export default function AdminRegistrationsPage() {
           : reg
       ));
       
-      toast.success('Registration rejected successfully!');
+      toast({
+        title: "Success",
+        description: "Registration rejected successfully!",
+      });
     } catch (error) {
       console.error('Error rejecting registration:', error);
-      toast.error('Failed to reject registration. Please try again.');
+      toast({
+        title: "Error",
+        description: "Failed to reject registration. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setProcessingId(null);
     }
@@ -308,34 +411,22 @@ export default function AdminRegistrationsPage() {
     setRefreshing(false);
   };
 
-  // Export CSV function
-  const handleExportCSV = () => {
-    const csvData = filteredRegistrations.map(reg => ({
-      'Group ID': reg.group_id,
-      'Leader Name': reg.leader_name,
-      'Email': reg.leader_email,
-      'Phone': reg.leader_phone,
-      'College': reg.college,
-      'Members Count': reg.members_count,
-      'Tier': reg.tier,
-      'Total Amount': reg.total_amount,
-      'Status': reg.status,
-      'Created At': new Date(reg.created_at).toLocaleDateString(),
-      'Reviewed At': reg.reviewed_at ? new Date(reg.reviewed_at).toLocaleDateString() : ''
-    }));
-    
-    const csv = [
-      Object.keys(csvData[0] || {}).join(','),
-      ...csvData.map(row => Object.values(row).map(val => `"${val}"`).join(','))
-    ].join('\n');
-    
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `registrations_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+  // Export CSV function using database view
+  const handleExportCSV = async () => {
+    try {
+      await exportService.exportRegistrationsCSV();
+      toast({
+        title: "Export Successful",
+        description: "Registration data has been exported to CSV.",
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to export registration data. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Get status badge
@@ -713,6 +804,16 @@ export default function AdminRegistrationsPage() {
                         
                         {/* Actions */}
                         <div className="space-y-3">
+                          {/* View Details Button */}
+                          <Button
+                            variant="outline"
+                            className="border-purple-500/50 text-purple-400 hover:bg-purple-600/20 hover:border-purple-400 w-full"
+                            onClick={() => handleViewDetails(registration)}
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            View Details
+                          </Button>
+                          
                           {/* View Payment Proof Button - Always show */}
                           <Button
                             variant="outline"
@@ -830,6 +931,221 @@ export default function AdminRegistrationsPage() {
               </div>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Registration Details Dialog */}
+      <Dialog open={showRegistrationDetails} onOpenChange={setShowRegistrationDetails}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto bg-slate-800 border-slate-700">
+          <DialogHeader>
+            <DialogTitle className="text-white">Registration Details</DialogTitle>
+          </DialogHeader>
+          
+          {selectedRegistration && (
+            <div className="space-y-6">
+              {/* Registration Information */}
+              <Card className="bg-slate-700/50 border-slate-600">
+                <CardHeader>
+                  <CardTitle className="text-lg text-white">Registration Information</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-400">Group ID:</span>
+                      <p className="text-white font-semibold">{selectedRegistration.group_id}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Registration Date:</span>
+                      <p className="text-white">{new Date(selectedRegistration.created_at).toLocaleDateString()}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Status:</span>
+                      <p className={`font-semibold ${
+                        selectedRegistration.status === 'approved' ? 'text-green-400' :
+                        selectedRegistration.status === 'rejected' ? 'text-red-400' : 'text-yellow-400'
+                      }`}>{selectedRegistration.status.charAt(0).toUpperCase() + selectedRegistration.status.slice(1)}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Member Count:</span>
+                      <p className="text-white">{selectedRegistration.members_count}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Leader Information */}
+              <Card className="bg-slate-700/50 border-slate-600">
+                <CardHeader>
+                  <CardTitle className="text-lg text-white">Leader Information</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-400">Leader Name:</span>
+                      <p className="text-white font-semibold">{selectedRegistration.leader_name}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Email:</span>
+                      <p className="text-white">{selectedRegistration.leader_email}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Phone:</span>
+                      <p className="text-white">{selectedRegistration.leader_phone}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">College:</span>
+                      <p className="text-white">{selectedRegistration.college}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Group Members */}
+              <Card className="bg-slate-700/50 border-slate-600">
+                <CardHeader>
+                  <CardTitle className="text-lg text-white">Group Members ({selectedRegistration.members_count})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loadingMembers ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="w-6 h-6 animate-spin text-purple-400 mr-2" />
+                      <span className="text-gray-400">Loading group members...</span>
+                    </div>
+                  ) : groupMembers && groupMembers.length > 0 ? (
+                    <div className="space-y-3">
+                      {groupMembers.map((member: any, index: number) => (
+                        <div key={member.id || index} className="p-3 bg-slate-600/50 rounded-lg">
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-sm">
+                            <div>
+                              <span className="text-gray-400">Name:</span>
+                              <p className="text-white font-semibold">{member.name}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">User ID:</span>
+                              <p className="text-white font-semibold">{member.user_id || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Selection:</span>
+                              <p className="text-cyan-400 font-semibold">
+                                {member.selection_type === 'tier' 
+                                  ? member.tier 
+                                  : member.selection_type === 'pass' 
+                                    ? `${member.pass_type}${member.pass_tier ? ` - ${member.pass_tier}` : ''}`
+                                    : member.selection || member.pass_tier || member.tier || 'N/A'
+                                }
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Amount:</span>
+                              <p className="text-green-400 font-semibold">₹{member.amount || selectedRegistration?.tier_amount}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : selectedRegistration?.member_selections && selectedRegistration.member_selections.length > 0 ? (
+                    <div className="space-y-3">
+                      <div className="text-center py-2">
+                        <p className="text-yellow-400 text-sm">⚠️ Group member details not available, showing selection data:</p>
+                      </div>
+                      {selectedRegistration.member_selections.map((member: any, index: number) => (
+                        <div key={index} className="p-3 bg-slate-600/50 rounded-lg">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                            <div>
+                              <span className="text-gray-400">Name:</span>
+                              <p className="text-white font-semibold">{member.name}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Selection:</span>
+                              <p className="text-cyan-400 font-semibold">{member.selection}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Amount:</span>
+                              <p className="text-green-400 font-semibold">₹{member.amount}</p>
+                            </div>
+                          </div>
+                          {member.pass_tier && (
+                            <div className="mt-2 text-xs">
+                              <span className="text-gray-400">Pass Tier: </span>
+                              <span className="text-purple-400">{member.pass_tier}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-400">No member details available</p>
+                      <p className="text-xs text-gray-500 mt-2">Member data may not be available for this registration</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Payment Information */}
+              <Card className="bg-slate-700/50 border-slate-600">
+                <CardHeader>
+                  <CardTitle className="text-lg text-white">Payment Information</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-400">Transaction ID:</span>
+                        <p className="text-white font-mono">{selectedRegistration.payment_transaction_id}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-400">Amount:</span>
+                        <p className="text-green-400 font-bold">₹{selectedRegistration.total_amount.toLocaleString()}</p>
+                      </div>
+                    </div>
+                    
+                    {selectedRegistration.payment_screenshot_path && (
+                      <div>
+                        <span className="text-gray-400 block mb-2">Payment Screenshot:</span>
+                        <Button
+                          onClick={() => viewPaymentScreenshot(selectedRegistration.payment_screenshot_path!)}
+                          variant="outline"
+                          className="border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white"
+                        >
+                          <ImageIcon className="w-4 h-4 mr-2" />
+                          View Payment Proof
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {selectedRegistration.status !== 'pending' && (
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-400">Reviewed By:</span>
+                          <p className="text-white">{selectedRegistration.reviewed_by || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Reviewed At:</span>
+                          <p className="text-white">
+                            {selectedRegistration.reviewed_at 
+                              ? new Date(selectedRegistration.reviewed_at).toLocaleString()
+                              : 'N/A'
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {selectedRegistration.rejection_reason && (
+                      <div>
+                        <span className="text-gray-400 block mb-2">Rejection Reason:</span>
+                        <p className="text-red-400 bg-red-900/20 p-3 rounded-lg border border-red-500/20">
+                          {selectedRegistration.rejection_reason}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
