@@ -69,7 +69,7 @@ export default function HomePage() {
   };
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
       {/* Comic book style background elements - positioned exactly as in design */}
       <div className="absolute inset-0 opacity-20">
         <div className="absolute top-20 left-10 text-6xl font-black text-blue-400 transform -rotate-12 select-none">POW!</div>
@@ -106,7 +106,7 @@ export default function HomePage() {
           </div>
 
           {/* Description text - matching design typography */}
-          <div className="max-w-5xl mx-auto space-y-4 sm:space-y-6 text-gray-200 mb-8 sm:mb-12">
+          <div className="max-w-5xl mx-auto space-y-3 text-gray-200 mb-8 sm:mb-12">
             <p className="text-base sm:text-lg md:text-xl font-medium leading-relaxed tracking-wide px-2">
               WELCOME TO JIPMER&#39;S VERY OWN COMIC MULTIVERSE—WHERE THE STREETS SHIMMER
               WITH SECRETS AND EVERY FACE HIDES A HERO.
@@ -123,7 +123,7 @@ export default function HomePage() {
       <section className="relative z-10 py-6 sm:py-8">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           {/* Additional description - exact typography from design */}
-          <div className="max-w-5xl mx-auto space-y-4 sm:space-y-6 text-gray-200 mb-8 sm:mb-12">
+          <div className="max-w-5xl mx-auto space-y-3 text-gray-200 mb-8 sm:mb-12">
             <p className="text-base sm:text-lg md:text-xl font-medium leading-relaxed tracking-wide px-2">
               IN THIS LEGENDARY SAGA, EVERY EVENT IS A PLOT TWIST, FROM THE ROAR OF THE ARENA
               TO THE HUSH OF MYSTERY IN THE MIST. SPANDAN IS WHERE DESTINIES COLLIDE AND
@@ -167,6 +167,22 @@ export default function HomePage() {
             </Card>
           </div>
 
+          {/* Registration Status Button - Positioned above video */}
+          <div className="mb-8 flex justify-center">
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 rounded-lg blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-tilt"></div>
+              <Link href="/registration-status">
+                <Button size="lg" className="relative bg-gradient-to-r from-purple-700 via-purple-800 to-indigo-900 hover:from-purple-600 hover:via-purple-700 hover:to-indigo-800 text-white px-8 py-4 text-lg font-bold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-purple-500/25 border-2 border-purple-400 rounded-lg tracking-wide group-hover:text-yellow-300">
+                  <Zap className="w-5 h-5 mr-2 group-hover:animate-pulse" />
+                  CHECK REGISTRATION STATUS
+                </Button>
+              </Link>
+              <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-xs text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
+                Track your registration progress
+              </div>
+            </div>
+          </div>
+
           {/* After Movie CTA - exact styling from design */}
           <div className="mb-12">
             <div 
@@ -183,18 +199,20 @@ export default function HomePage() {
             <p className="text-gray-400 text-sm tracking-wide">(CLICK TO PLAY VIDEO)</p>
           </div>
 
-          {/* Action Buttons - matching design styling */}
-          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
+          {/* Action Buttons - Unified styling */}
+          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center flex-wrap">
             <Link href="/register">
-              <Button size="lg" className="bg-cyan-500 hover:bg-cyan-600 text-white px-8 py-4 text-lg font-bold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-cyan-500/25 border-2 border-cyan-400 rounded-lg tracking-wide">
+              <Button size="lg" className="bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white px-8 py-4 text-lg font-bold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-cyan-500/25 border-2 border-cyan-400 rounded-lg tracking-wide">
                 REGISTER NOW
               </Button>
             </Link>
+            
             <Link href="/events">
-              <Button size="lg" variant="outline" className="border-2 border-cyan-400 text-cyan-800 hover:bg-cyan-400 hover:text-slate-900 px-8 py-4 text-lg font-bold transform hover:scale-105 transition-all duration-300 rounded-lg tracking-wide">
+              <Button size="lg" className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-8 py-4 text-lg font-bold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-blue-500/25 border-2 border-blue-400 rounded-lg tracking-wide">
                 VIEW EVENTS
               </Button>
             </Link>
+            
             <a 
               href="#" 
               onClick={(e) => {
@@ -203,7 +221,7 @@ export default function HomePage() {
               }}
               className="inline-block"
             >
-              <Button size="lg" variant="outline" className="border-2 border-yellow-400 text-yellow-600 hover:bg-yellow-400 hover:text-slate-900 px-8 py-4 text-lg font-bold transform hover:scale-105 transition-all duration-300 rounded-lg tracking-wide">
+              <Button size="lg" className="bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-slate-900 px-8 py-4 text-lg font-bold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-yellow-500/25 border-2 border-yellow-400 rounded-lg tracking-wide">
                 <FileText className="w-5 h-5 mr-2" />
                 DOWNLOAD BROCHURE
               </Button>
@@ -295,7 +313,7 @@ export default function HomePage() {
                 }}
                 className="bg-cyan-600 hover:bg-cyan-700"
               >
-                Open in Google Drive
+                Open in new tab
               </Button>
             )}
           </div>

@@ -40,6 +40,7 @@ const REGISTRATION_TIERS = [
       'Inaugural night (day 1)',
       'Chorea night (day 2)', 
       'Aalap finale (day 3)',
+      'Tinnitus finale (day 4)',
       'DJ night (day 1)',
       '1 minor proshow'
     ],
@@ -111,7 +112,7 @@ const REGISTRATION_PASSES = [
     name: 'Nexus Spotlight - CULT Pass',
     price: 250,
     description: 'Access to spectate and participate in minor stage and fine arts events',
-    details: 'Does not allow participation in Major Cultural Events',
+    details: ['Does not allow participation in Major Cultural Events. ', 'Event registration fee to be paid separately'],
     features: [
       'Spectate all minor cultural events',
       'Participate in fine arts events*',
@@ -719,7 +720,24 @@ export default function EnhancedRegisterPage() {
                     className="text-sm underline flex items-center hover:text-white transition-colors"
                     onClick={(e) => {
                       e.stopPropagation()
-                      toast.info('Please upload the brochure PDF file to enable this link')
+                      try {
+                        // Google Drive direct download URL - same as home page
+                        const googleDriveFileId = '1l82Wm4sg3qsThH-a0Rl5QJ0Uz2fE-yv6';
+                        const googleDriveDownloadUrl = `https://drive.google.com/uc?export=download&id=${googleDriveFileId}`;
+                        
+                        // Create a temporary link and trigger download
+                        const link = document.createElement('a');
+                        link.href = googleDriveDownloadUrl;
+                        link.download = 'Spandan-2025-Brochure.pdf';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        
+                        toast.success('Brochure download started!');
+                      } catch (error) {
+                        console.error('Download error:', error);
+                        toast.error('Download failed. Please try again.');
+                      }
                     }}
                   >
                     <ExternalLink className="w-4 h-4 mr-1 flex-shrink-0" />

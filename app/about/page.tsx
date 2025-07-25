@@ -184,7 +184,7 @@ export default function AboutPage() {
             </Card>
             <Card className="bg-green-600/80 border-2 border-green-400 rounded-2xl p-6">
               <h3 className="text-xl font-bold text-white mb-2">FINE ARTS</h3>
-              <p className="text-white/80">Painting, Sketching, Photography, and Visual Arts</p>
+              <p className="text-white/80">Painting, Sketching, and Visual Arts</p>
             </Card>
             <Card className="bg-purple-600/80 border-2 border-purple-400 rounded-2xl p-6">
               <h3 className="text-xl font-bold text-white mb-2">LITERARY</h3>

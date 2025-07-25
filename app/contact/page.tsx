@@ -90,8 +90,7 @@ export default function ContactPage() {
                 </div>
                 <h3 className="text-lg font-bold text-white mb-3">OFFICE HOURS</h3>
                 <p className="text-white text-sm leading-relaxed">
-                  Mon - Fri: 9:00 AM - 6:00 PM<br />
-                  Sat: 9:00 AM - 2:00 PM
+                  24/7 on all days<br />
                 </p>
               </CardContent>
             </Card>
