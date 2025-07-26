@@ -39,7 +39,7 @@ const REGISTRATION_TIERS = [
     features: [
       'Inaugural night (day 1)',
       'Chorea night (day 2)', 
-      'Aalap finale (day 3)',
+      'Alaap finale (day 3)',
       'Tinnitus finale (day 4)',
       'DJ night (day 1)',
       '1 minor proshow'
@@ -59,7 +59,7 @@ const REGISTRATION_TIERS = [
       'Chorea night (day 2)',
       'Aalap finale (day 3)',
       'Tinnitus finale (day 4)',
-      'DJ night (day 1 & 2)',
+      'DJ night (day 5)',
       '2 minor proshows'
     ],
     bgColor: 'bg-gradient-to-br from-amber-500 via-orange-600 to-red-700',
@@ -79,7 +79,8 @@ const REGISTRATION_TIERS = [
       'Tinnitus finale (day 4)',
       'DJ night (all 3 days)',
       '2 minor proshows',
-      'Major proshow access'
+      'Major proshow access',
+      'Dernier CRI access'
     ],
     bgColor: 'bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700',
     textColor: 'text-emerald-100',
@@ -114,10 +115,8 @@ const REGISTRATION_PASSES = [
     description: 'Access to spectate and participate in minor stage and fine arts events',
     details: ['Does not allow participation in Major Cultural Events. ', 'Event registration fee to be paid separately'],
     features: [
-      'Spectate all minor cultural events',
-      'Participate in fine arts events*',
-      'Access to minor stage performances',
-      'Fine arts workshop access'
+      'Spectate & Participate in ALL Minor Stage Events',
+      'Spectate & Participate in ALL Fine Arts Events*'
     ],
     bgColor: 'bg-gradient-to-br from-pink-600 via-rose-700 to-red-800',
     textColor: 'text-pink-100',
@@ -131,14 +130,11 @@ const REGISTRATION_PASSES = [
       { id: 'Standard' as PassTier, name: 'Standard', price: 500 },
       { id: 'Premium' as PassTier, name: 'Premium', price: 750 }
     ],
-    description: 'Literary and academic event access with varying amenities',
-    details: 'For detailed amenities refer to the brochure',
+    description: 'Literary and Quiz events access with varying amenities',
+    details: ['Events registration fee included with price of pass (i.e. No extra charges — event registrations are covered in the LIT Pass). ', 'For detailed amenities refer to the brochure.'], 
     features: [
-      'Literary event access',
-      'Academic workshops',
-      'Debate competitions',
-      'Writing contests',
-      'Premium: Enhanced amenities (see brochure)'
+      'Offline Literary Events',
+      'Quzzing Events'
     ],
     bgColor: 'bg-gradient-to-br from-violet-600 via-purple-700 to-indigo-800',
     textColor: 'text-violet-100',
@@ -182,7 +178,7 @@ export default function EnhancedRegisterPage() {
 
   // Add new member to group
   const addMember = () => {
-    if (members.length < 12) {
+    if (members.length < 25) {
       setMembers([...members, {
         name: '',
         email: '',
@@ -741,7 +737,7 @@ export default function EnhancedRegisterPage() {
                     }}
                   >
                     <ExternalLink className="w-4 h-4 mr-1 flex-shrink-0" />
-                    View detailed amenities brochure
+                    For detailed amenities refer brochure
                   </a>
                 </div>
               )}
@@ -959,7 +955,7 @@ export default function EnhancedRegisterPage() {
               ))}
 
               {/* Add Member Button */}
-              {members.length < 12 && (
+              {members.length < 25 && (
                 <Card className="bg-slate-800/30 border-dashed border-slate-600 border-2">
                   <CardContent className="flex items-center justify-center py-12">
                     <Button
@@ -968,7 +964,7 @@ export default function EnhancedRegisterPage() {
                       className="border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white"
                     >
                       <Plus className="w-4 h-4 mr-2" />
-                      Add Member ({members.length}/12)
+                      Add Member ({members.length}/25)
                     </Button>
                   </CardContent>
                 </Card>
@@ -1267,8 +1263,11 @@ export default function EnhancedRegisterPage() {
                 <div className="space-y-4">
                   <div className="bg-yellow-900/20 border border-yellow-600/30 p-4 rounded-lg">
                     <p className="text-yellow-300 text-sm">
-                      <strong>Important:</strong> Please ensure all details are correct before submitting. 
-                      Registration fees are non-refundable. You will receive a confirmation email after successful registration.
+                      <strong>Important Note:<br/></strong>• After completing your registration, you can track your Delegate ID and registration status in the footnote section.<br/>
+                                                      • Each pass category permits participation only in its respective events.<br/>
+                                                      • Want more access? Upgrade to a Delegate tier anytime by contacting our team.<br/>
+                                                      • Registration fees are non-refundable. <br/>
+                                                      • You will receive a confirmation email after successful registration.
                     </p>
                   </div>
                   

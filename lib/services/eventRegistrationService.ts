@@ -70,10 +70,10 @@ export const createEventRegistration = async (
       }
     }
 
-    // Step 3: Get event details
+    // Step 3: Get event details and check if registration is active
     const { data: eventData, error: eventError } = await supabase
       .from('events')
-      .select('name, price, max_participants')
+      .select('name, price, is_active')
       .eq('id', eventId)
       .single()
 
@@ -81,15 +81,9 @@ export const createEventRegistration = async (
       return { success: false, error: 'Event not found' }
     }
 
-    // Step 4: Check event capacity
-    const { data: capacityCheck, error: capacityError } = await supabase
-      .rpc('check_event_capacity', { 
-        event_uuid: eventId, 
-        requested_spots: members.length 
-      })
-
-    if (capacityError || !capacityCheck) {
-      return { success: false, error: 'Event capacity exceeded or capacity check failed' }
+    // Step 4: Check if event registration is active
+    if (!eventData.is_active) {
+      return { success: false, error: 'Event registration is currently closed' }
     }
 
     // Step 5: Generate group ID

@@ -749,7 +749,7 @@ export default function RegistrationStatusPage() {
                           <div className="bg-yellow-900/20 border border-yellow-600/30 p-3 rounded-lg">
                             <p className="text-yellow-300 text-sm">
                               <Clock className="w-4 h-4 inline mr-2" />
-                              Your registration is being reviewed. You will receive a confirmation email once verified.
+                              Your registration is being reviewed and will be approved within 24 hrs. For any further delay, please contact the organising team.
                             </p>
                           </div>
                         )}

@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { eventService } from '@/lib/services/events';
 import { Event } from '@/lib/types';
@@ -53,7 +54,7 @@ interface EventFormData {
   venue: string;
   start_date: string;
   end_date: string;
-  max_participants: number;
+  is_active: boolean; // Registration status toggle
 }
 
 const initialFormData: EventFormData = {
@@ -66,7 +67,7 @@ const initialFormData: EventFormData = {
   venue: '',
   start_date: '',
   end_date: '',
-  max_participants: 50
+  is_active: true // New events are open by default
 };
 
 export default function AdminEventManagement() {
@@ -177,7 +178,7 @@ export default function AdminEventManagement() {
       venue: event.venue || '',
       start_date: formatDateForInput(event.start_date),
       end_date: formatDateForInput(event.end_date),
-      max_participants: event.max_participants || 50
+      is_active: event.is_active !== false // Default to true if undefined
     });
     setIsDialogOpen(true);
   };
@@ -217,12 +218,6 @@ export default function AdminEventManagement() {
         return;
       }
 
-      // Validate mandatory numeric fields
-      if (!formData.max_participants || formData.max_participants <= 0) {
-        toast.error('Max participants must be a positive number');
-        return;
-      }
-
       // Validate mandatory date fields
       if (!formData.start_date) {
         toast.error('Start date is required');
@@ -252,15 +247,15 @@ export default function AdminEventManagement() {
         category: finalCategory, // Use the final category (custom or predefined)
         price: formData.price,
         description: formData.description,
-        max_participants: formData.max_participants,
         start_date: formData.start_date,
         end_date: formData.end_date,
+        is_active: formData.is_active, // Registration status
         // Set default values for optional fields
         info_points: formData.info_points 
           ? formData.info_points.split(',').map(point => point.trim()).filter(point => point.length > 0)
           : ['No Info Provided'],
         venue: formData.venue.trim() || 'Not Specified',
-        is_active: true,
+        max_participants: 50, // Keep in database but don't use for logic
         updated_at: new Date().toISOString()
       };
 
@@ -449,7 +444,16 @@ export default function AdminEventManagement() {
                         <CardTitle className="text-lg font-bold text-white mb-2">
                           {event.name}
                         </CardTitle>
-                        {getCategoryBadge(event.category)}
+                        <div className="flex items-center gap-2 mb-2">
+                          {getCategoryBadge(event.category)}
+                          <Badge className={`${
+                            event.is_active 
+                              ? 'bg-green-500 text-white' 
+                              : 'bg-red-500 text-white'
+                          }`}>
+                            {event.is_active ? 'Open' : 'Closed'}
+                          </Badge>
+                        </div>
                       </div>
                       <div className="flex space-x-2 ml-4">
                         <Button
@@ -497,8 +501,11 @@ export default function AdminEventManagement() {
                           <span className="font-bold">₹{event.price}</span>
                         </div>
                         <div className="flex items-center text-gray-400">
-                          <Users className="w-4 h-4 mr-1" />
-                          <span>{event.max_participants || 50} max</span>
+                          <span className={`font-semibold ${
+                            event.is_active ? 'text-green-400' : 'text-red-400'
+                          }`}>
+                            {event.is_active ? 'Registration Open' : 'Registration Closed'}
+                          </span>
                         </div>
                       </div>
 
@@ -621,7 +628,7 @@ export default function AdminEventManagement() {
               </p>
             </div>
 
-            {/* Venue and Max Participants */}
+            {/* Venue and Registration Status */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="venue" className="text-gray-300">Venue</Label>
@@ -637,16 +644,22 @@ export default function AdminEventManagement() {
                 </p>
               </div>
               <div>
-                <Label htmlFor="max_participants" className="text-gray-300">Max Participants *</Label>
-                <Input
-                  id="max_participants"
-                  type="number"
-                  min="1"
-                  value={formData.max_participants}
-                  onChange={(e) => setFormData({...formData, max_participants: parseInt(e.target.value) || 50})}
-                  className="bg-slate-700 border-slate-600 text-white"
-                  required
-                />
+                <Label htmlFor="is_active" className="text-gray-300">Registration Status</Label>
+                <div className="flex items-center space-x-3 mt-2">
+                  <Switch
+                    id="is_active"
+                    checked={formData.is_active}
+                    onCheckedChange={(checked) => setFormData({...formData, is_active: checked})}
+                  />
+                  <Label htmlFor="is_active" className={`text-sm font-medium ${
+                    formData.is_active ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {formData.is_active ? 'Registration Open' : 'Registration Closed'}
+                  </Label>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Toggle to open/close event registrations
+                </p>
               </div>
             </div>
 

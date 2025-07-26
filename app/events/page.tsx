@@ -90,6 +90,13 @@ export default function EventsPage() {
   const [userIdInput, setUserIdInput] = useState('');
   const [validatingUser, setValidatingUser] = useState(false);
   const [validatedUser, setValidatedUser] = useState<any>(null);
+  const [userTypeInfo, setUserTypeInfo] = useState<{
+    type: 'tier' | 'sports' | 'cult' | 'lit' | 'unknown';
+    allowedCategories: string[];
+    isCompatible: boolean;
+    message: string;
+    isFree: boolean;
+  } | null>(null);
   
   // Payment validation states
   const [paymentValidationError, setPaymentValidationError] = useState('')
@@ -206,6 +213,56 @@ export default function EventsPage() {
     return IconComponent;
   };
 
+  // Function to detect user type and check event compatibility
+  const getUserTypeInfo = (userId: string, eventCategory: string) => {
+    const userType = {
+      type: 'unknown' as 'tier' | 'sports' | 'cult' | 'lit' | 'unknown',
+      allowedCategories: [] as string[],
+      isCompatible: false,
+      message: '',
+      isFree: false
+    };
+
+    // Detect user type based on ID pattern
+    if (userId.startsWith('USER-ISSU-') || userId.startsWith('USER-DEED-') || userId.startsWith('USER-COPR-')) {
+      userType.type = 'tier';
+      userType.allowedCategories = ['all']; // Tier users can register for all events
+      userType.isCompatible = true;
+      userType.message = '✓ Tier registered user - Can register for all events';
+      userType.isFree = false;
+    } else if (userId.startsWith('USER-PANA-')) {
+      userType.type = 'sports';
+      userType.allowedCategories = ['Sports'];
+      userType.isCompatible = eventCategory === 'Sports';
+      userType.message = userType.isCompatible 
+        ? '✓ Sports Pass holder - Compatible with Sports events'
+        : '⚠️ Sports Pass holder - Can only register for Sports events';
+      userType.isFree = false;
+    } else if (userId.startsWith('USER-PANS-')) {
+      userType.type = 'cult';
+      userType.allowedCategories = ['Fine Arts', 'Major Culturals', 'Minor Culturals', 'Culturals'];
+      userType.isCompatible = userType.allowedCategories.some(cat => 
+        eventCategory.includes(cat) || cat.includes(eventCategory)
+      );
+      userType.message = userType.isCompatible
+        ? '✓ Cult Pass holder - Compatible with Fine Arts & Cultural events'
+        : '⚠️ Cult Pass holder - Can only register for Fine Arts & Cultural events';
+      userType.isFree = false;
+    } else if (userId.startsWith('USER-PANFS-') || userId.startsWith('USER-PANFP-')) {
+      userType.type = 'lit';
+      userType.allowedCategories = ['Literary'];
+      userType.isCompatible = eventCategory === 'Literary';
+      userType.message = userType.isCompatible
+        ? '🎉 LIT Pass holder - Compatible with Literary events (FREE Registration!)'
+        : '⚠️ LIT Pass holder - Can only register for Literary events';
+      userType.isFree = userType.isCompatible; // Only free if compatible
+    } else {
+      userType.message = '❌ Invalid user ID format';
+    }
+
+    return userType;
+  };
+
   useEffect(() => {
     if (selectedEvent) {
       const loadApprovedUsers = async () => {
@@ -307,17 +364,30 @@ export default function EventsPage() {
     }
 
     setValidatingUser(true);
+    setUserTypeInfo(null);
+    
     try {
       const result = await getUserDetails(userIdInput.trim());
       if (result.success && result.data) {
-        setValidatedUser(result.data);
-        toast.success(`User found: ${result.data.name}`);
+        // Check user type and event compatibility
+        const userTypeData = getUserTypeInfo(userIdInput.trim(), selectedEvent?.category || '');
+        setUserTypeInfo(userTypeData);
+        
+        if (userTypeData.isCompatible) {
+          setValidatedUser(result.data);
+          toast.success(`User found: ${result.data.name}`);
+        } else {
+          setValidatedUser(null);
+          toast.error(`User found but not compatible with this event category`);
+        }
       } else {
         setValidatedUser(null);
+        setUserTypeInfo(null);
         toast.error('User not found or not approved for tier/pass registration');
       }
     } catch (error) {
       setValidatedUser(null);
+      setUserTypeInfo(null);
       toast.error('Error validating user ID');
     } finally {
       setValidatingUser(false);
@@ -325,7 +395,7 @@ export default function EventsPage() {
   };
 
   const addValidatedUser = () => {
-    if (!validatedUser) return;
+    if (!validatedUser || !userTypeInfo?.isCompatible) return;
 
     if (members.find(m => m.userId === validatedUser.user_id)) {
       toast.error('User already added to registration');
@@ -349,12 +419,27 @@ export default function EventsPage() {
         email: validatedUser.email,
         phone: validatedUser.phone
       });
+      
+      // If it's a LIT pass user, set up free registration
+      if (userTypeInfo.isFree) {
+        setPaymentData(prev => ({
+          ...prev,
+          transactionId: 'LIT PASS HOLDER',
+          screenshotFile: null // We'll handle this differently for LIT pass
+        }));
+      }
     }
 
     setMembers([...members, newMember]);
     setUserIdInput('');
     setValidatedUser(null);
-    toast.success(`${validatedUser.name} added to registration`);
+    setUserTypeInfo(null);
+    
+    const message = userTypeInfo.isFree 
+      ? `${validatedUser.name} added to registration (FREE with LIT Pass!)`
+      : `${validatedUser.name} added to registration`;
+    
+    toast.success(message);
   };
 
   const addMember = async (userId: string) => {
@@ -410,30 +495,35 @@ export default function EventsPage() {
       return;
     }
 
-    // Check for payment validation errors
-    if (paymentValidationError) {
-      toast.error('Please fix payment validation errors before submitting');
-      return;
-    }
+    const isLitPassRegistration = paymentData.transactionId === 'LIT PASS HOLDER';
 
-    // Validate transaction ID format
-    const transactionValidation = validateTransactionIdDetailed(paymentData.transactionId)
-    if (!transactionValidation.isValid) {
-      toast.error(transactionValidation.error || 'Invalid transaction ID')
-      return
-    }
+    // Skip payment validation for LIT pass users
+    if (!isLitPassRegistration) {
+      // Check for payment validation errors
+      if (paymentValidationError) {
+        toast.error('Please fix payment validation errors before submitting');
+        return;
+      }
 
-    // Check for duplicate transaction ID
-    try {
-      const duplicateCheck = await DuplicateRegistrationService.checkTransactionIdExists(paymentData.transactionId)
-      if (duplicateCheck.isDuplicate) {
-        toast.error(`Transaction ID already used in registration ${duplicateCheck.existingRegistration?.groupId}`)
+      // Validate transaction ID format
+      const transactionValidation = validateTransactionIdDetailed(paymentData.transactionId)
+      if (!transactionValidation.isValid) {
+        toast.error(transactionValidation.error || 'Invalid transaction ID')
         return
       }
-    } catch (error) {
-      console.error('Error checking transaction ID duplicate:', error)
-      toast.error('Error validating transaction ID')
-      return
+
+      // Check for duplicate transaction ID
+      try {
+        const duplicateCheck = await DuplicateRegistrationService.checkTransactionIdExists(paymentData.transactionId)
+        if (duplicateCheck.isDuplicate) {
+          toast.error(`Transaction ID already used in registration ${duplicateCheck.existingRegistration?.groupId}`)
+          return
+        }
+      } catch (error) {
+        console.error('Error checking transaction ID duplicate:', error)
+        toast.error('Error validating transaction ID')
+        return
+      }
     }
 
     setSubmitting(true);
@@ -445,12 +535,16 @@ export default function EventsPage() {
         contactInfo.email,
         contactInfo.phone,
         paymentData.transactionId,
-        paymentData.screenshotFile,
+        isLitPassRegistration ? null : paymentData.screenshotFile, // No screenshot needed for LIT pass
         members
       );
 
       if (result.success) {
-        toast.success(`Event registration submitted successfully! Group ID: ${result.data?.groupId}`);
+        const successMessage = isLitPassRegistration 
+          ? `Event registration submitted successfully (FREE with LIT Pass)! Group ID: ${result.data?.groupId}`
+          : `Event registration submitted successfully! Group ID: ${result.data?.groupId}`;
+        
+        toast.success(successMessage);
         
         setTimeout(() => {
           setSelectedEvent(null);
@@ -458,6 +552,7 @@ export default function EventsPage() {
           setContactInfo({ userId: '', name: '', email: '', phone: '' });
           setMembers([]);
           setPaymentData({ transactionId: '', screenshotFile: null, qrCodeUrl: '' });
+          setUserTypeInfo(null);
         }, 2000);
       } else {
         toast.error(result.error || 'Failed to submit registration');
@@ -477,9 +572,12 @@ export default function EventsPage() {
     setPaymentData({ transactionId: '', screenshotFile: null, qrCodeUrl: '' });
     setUserIdInput('');
     setValidatedUser(null);
+    setUserTypeInfo(null);
   };
 
-  const totalAmount = selectedEvent ? selectedEvent.price * members.length : 0;
+  const totalAmount = selectedEvent ? (
+    paymentData.transactionId === 'LIT PASS HOLDER' ? 0 : selectedEvent.price * members.length
+  ) : 0;
 
   return (
     <div className="min-h-screen bg-[#0A0F1A] text-white relative overflow-hidden">
@@ -585,24 +683,27 @@ export default function EventsPage() {
                             <p className="text-gray-300">{selectedEvent.venue}</p>
                           </div>
                         )}
-                        <div>
-                          <h4 className="font-semibold text-white mb-2">Max Participants</h4>
-                          <p className="text-gray-300">{selectedEvent.max_participants} per team</p>
-                        </div>
-                        {selectedEvent.end_date && selectedEvent.start_date !== selectedEvent.end_date && (
+                        {selectedEvent.end_date && (
                           <div>
                             <h4 className="font-semibold text-white mb-2">End Date</h4>
-                            <p className="text-gray-300">{new Date(selectedEvent.end_date).toLocaleDateString('en-IN', {
-                              weekday: 'long',
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            })}</p>
+                            <p className="text-gray-300">
+                              {selectedEvent.start_date === selectedEvent.end_date 
+                                ? 'Same as Event Date' 
+                                : new Date(selectedEvent.end_date).toLocaleDateString('en-IN', {
+                                    weekday: 'long',
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric'
+                                  })
+                              }
+                            </p>
                           </div>
                         )}
                         <div className="bg-purple-900/30 rounded-lg p-4 border border-purple-500/30">
                           <h4 className="font-semibold text-purple-300 mb-2">Registration Status</h4>
-                          <p className="text-green-400 font-semibold">
+                          <p className={`font-semibold ${
+                            selectedEvent.is_active ? 'text-green-400' : 'text-red-400'
+                          }`}>
                             {selectedEvent.is_active ? '✓ Open for Registration' : '✗ Registration Closed'}
                           </p>
                         </div>
@@ -660,8 +761,43 @@ export default function EventsPage() {
                       </div>
                     </div>
 
+                    {/* User Type Information */}
+                    {userTypeInfo && (
+                      <div className={`rounded-xl p-4 border ${
+                        userTypeInfo.isCompatible 
+                          ? 'bg-green-900/20 border-green-500/30' 
+                          : 'bg-yellow-900/20 border-yellow-500/30'
+                      }`}>
+                        <div className="flex items-start space-x-3">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            userTypeInfo.isCompatible ? 'bg-green-500' : 'bg-yellow-500'
+                          }`}>
+                            {userTypeInfo.isCompatible ? '✓' : '⚠'}
+                          </div>
+                          <div className="flex-1">
+                            <p className={`font-semibold ${
+                              userTypeInfo.isCompatible ? 'text-green-400' : 'text-yellow-400'
+                            }`}>
+                              {userTypeInfo.message}
+                            </p>
+                            <p className="text-gray-300 text-sm mt-1">
+                              {userTypeInfo.type === 'tier' && 'Tier registration allows access to all events'}
+                              {userTypeInfo.type === 'sports' && 'Sports Pass allows registration for Sports category events only'}
+                              {userTypeInfo.type === 'cult' && 'Cult Pass allows registration for Fine Arts and Cultural category events only'}
+                              {userTypeInfo.type === 'lit' && 'LIT Pass allows registration for Literary category events only (with free registration)'}
+                            </p>
+                            {userTypeInfo.isFree && (
+                              <div className="mt-2 px-3 py-1 bg-green-600/20 border border-green-600/40 rounded-full inline-block">
+                                <span className="text-green-300 text-xs font-bold">🎉 FREE REGISTRATION</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Validated User Display */}
-                    {validatedUser && (
+                    {validatedUser && userTypeInfo?.isCompatible && (
                       <div className="bg-green-900/20 rounded-xl p-4 border border-green-500/30">
                         <div className="flex items-center justify-between">
                           <div>
@@ -674,7 +810,7 @@ export default function EventsPage() {
                             onClick={addValidatedUser}
                             className="bg-green-600 hover:bg-green-700"
                           >
-                            Select Member
+                            Add to Team
                           </Button>
                         </div>
                       </div>
@@ -712,6 +848,7 @@ export default function EventsPage() {
                             onClick={() => {
                               setUserIdInput('');
                               setValidatedUser(null);
+                              setUserTypeInfo(null);
                               // Scroll to input area
                               const inputElement = document.querySelector('input[placeholder="Enter User ID"]') as HTMLInputElement;
                               inputElement?.focus();
@@ -726,8 +863,13 @@ export default function EventsPage() {
                         
                         <div className="mt-4 p-4 bg-green-900/20 rounded-xl border border-green-500/30">
                           <p className="text-green-400 font-semibold">
-                            Total Registration Fee: ₹{totalAmount}
+                            Total Registration Fee: {totalAmount === 0 ? 'FREE (LIT Pass)' : `₹${totalAmount}`}
                           </p>
+                          {totalAmount === 0 && (
+                            <p className="text-green-300 text-sm mt-1">
+                              🎉 Free registration courtesy of LIT Pass holder!
+                            </p>
+                          )}
                         </div>
                       </div>
                     )}
@@ -738,11 +880,15 @@ export default function EventsPage() {
                       Back to Events
                     </Button>
                     <Button 
-                      onClick={() => setCurrentStep(3)} 
+                      onClick={() => {
+                        // Check if LIT pass holder (free registration)
+                        const isLitPassRegistration = paymentData.transactionId === 'LIT PASS HOLDER';
+                        setCurrentStep(isLitPassRegistration ? 4 : 3); // Skip payment for LIT pass
+                      }} 
                       disabled={members.length === 0}
                       className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 px-8"
                     >
-                      Continue to Payment
+                      {paymentData.transactionId === 'LIT PASS HOLDER' ? 'Review & Submit' : 'Continue to Payment'}
                     </Button>
                   </div>
                 </div>
@@ -1005,24 +1151,37 @@ export default function EventsPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <p className="text-gray-400">Total Amount</p>
-                          <p className="text-green-400 font-bold text-xl">₹{totalAmount}</p>
+                          <p className={`font-bold text-xl ${totalAmount === 0 ? 'text-green-400' : 'text-green-400'}`}>
+                            {totalAmount === 0 ? 'FREE (LIT Pass)' : `₹${totalAmount}`}
+                          </p>
                         </div>
                         <div>
                           <p className="text-gray-400">Transaction ID</p>
                           <p className="text-white font-semibold">{paymentData.transactionId}</p>
                         </div>
                       </div>
-                      {paymentData.screenshotFile && (
+                      {paymentData.transactionId === 'LIT PASS HOLDER' ? (
                         <div className="mt-4">
-                          <p className="text-gray-400">Payment Screenshot</p>
-                          <p className="text-green-400">✓ {paymentData.screenshotFile.name}</p>
+                          <p className="text-green-400">🎉 Free registration with LIT Pass!</p>
+                          <p className="text-gray-300 text-sm">No payment required for LIT Pass holders</p>
                         </div>
+                      ) : (
+                        paymentData.screenshotFile && (
+                          <div className="mt-4">
+                            <p className="text-gray-400">Payment Screenshot</p>
+                            <p className="text-green-400">✓ {paymentData.screenshotFile.name}</p>
+                          </div>
+                        )
                       )}
                     </div>
                   </div>
                   
                   <div className="flex justify-between pt-6">
-                    <Button onClick={() => setCurrentStep(3)} variant="outline" className="border-gray-600 text-gray-300 hover:bg-gray-700">
+                    <Button 
+                      onClick={() => setCurrentStep(paymentData.transactionId === 'LIT PASS HOLDER' ? 2 : 3)} 
+                      variant="outline" 
+                      className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                    >
                       Back
                     </Button>
                     <Button 
@@ -1130,6 +1289,19 @@ export default function EventsPage() {
                     
                     return (
                       <div key={event.id} className={`${bgColor} rounded-2xl p-6 relative transition-all duration-300 hover:scale-105 hover:shadow-2xl min-h-[400px] flex flex-col border-2 border-white`}>
+                        {/* Status Badge - Top Left */}
+                        <div className="absolute top-4 left-4">
+                          <div className={`backdrop-blur-sm px-3 py-1 rounded-full border-2 ${
+                            event.is_active 
+                              ? 'bg-green-500/80 border-green-300/60' 
+                              : 'bg-red-500/80 border-red-300/60'
+                          }`}>
+                            <span className="text-white text-xs font-bold">
+                              {event.is_active ? 'OPEN' : 'CLOSED'}
+                            </span>
+                          </div>
+                        </div>
+
                         {/* Category Badge - Top Right */}
                         <div className="absolute top-4 right-4">
                           <div className="bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full border-3 border-white/60">
@@ -1183,13 +1355,18 @@ export default function EventsPage() {
 
                         {/* Registration Fee Button - With thick white border */}
                         <button
-                          onClick={() => setSelectedEvent(event)}
-                          className={`w-full py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 font-black text-sm border-2 border-white bg-cyan-400 hover:bg-cyan-500 text-white`}
+                          onClick={() => event.is_active && setSelectedEvent(event)}
+                          disabled={!event.is_active}
+                          className={`w-full py-4 px-6 rounded-xl transition-all duration-300 transform font-black text-sm border-2 border-white ${
+                            event.is_active 
+                              ? 'bg-cyan-400 hover:bg-cyan-500 text-white hover:scale-105 cursor-pointer' 
+                              : 'bg-gray-600 text-gray-300 cursor-not-allowed opacity-60'
+                          }`}
                           style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}
                         >
                           <div className="text-center">
                             <div className="text-sm font-black tracking-wider uppercase">
-                              REGISTER NOW
+                              {event.is_active ? 'REGISTER NOW' : 'REGISTRATION CLOSED'}
                             </div>
                             <div className="text-lg font-black">₹{event.price}</div>
                           </div>
