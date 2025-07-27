@@ -3,6 +3,7 @@ import type {
   GroupRegistration, 
   GroupMember, 
   RegistrationView,
+  EnhancedRegistrationView,
   AdminUser 
 } from '@/lib/types';
 
@@ -82,15 +83,15 @@ export class AdminService {
   }
 
   /**
-   * Get all group registrations for admin dashboard
+   * Get all group registrations for admin dashboard with enhanced data structure
    */
   static async getAllRegistrations(): Promise<{
     success: boolean;
-    data?: RegistrationView[];
+    data?: EnhancedRegistrationView[];
     error?: string;
   }> {
     try {
-      // Get group registrations with complete data by joining tables directly
+      // Get group registrations with complete member data including emails
       const { data: registrationData, error: registrationError } = await supabase
         .from('group_registrations')
         .select(`
@@ -104,8 +105,8 @@ export class AdminService {
         throw new Error(`Failed to fetch registrations: ${registrationError.message}`);
       }
 
-      // Process the joined data
-      const groupedData = new Map<string, RegistrationView>();
+      // Process the joined data with enhanced structure
+      const groupedData = new Map<string, EnhancedRegistrationView>();
       
       if (registrationData) {
         for (const groupReg of registrationData) {
@@ -114,25 +115,42 @@ export class AdminService {
             const firstMember = groupReg.group_members?.[0];
             
             if (firstMember) {
-              // Get all member selections
-              const memberSelections = groupReg.group_members.map((member: any) => ({
+              // Create enhanced member data with all details including emails
+              const enhancedMembers = groupReg.group_members.map((member: any) => ({
+                id: member.id,
+                group_id: member.group_id,
+                user_id: member.user_id || member.delegate_user_id || member.pass_id,
                 name: member.name,
-                selection: member.tier || member.pass_type,
+                email: member.email,
+                college: member.college,
+                phone: member.phone,
+                college_location: member.college_location || '',
+                selection_type: member.selection_type || (member.tier ? 'tier' : 'pass'),
+                tier: member.tier,
+                delegate_user_id: member.delegate_user_id,
+                pass_type: member.pass_type,
                 pass_tier: member.pass_tier,
-                amount: member.amount
+                pass_id: member.pass_id,
+                amount: member.amount || 0,
+                member_order: member.member_order || 1,
+                created_at: member.created_at
               }));
               
               groupedData.set(groupReg.group_id, {
                 group_id: groupReg.group_id,
-                delegate_user_id: firstMember.delegate_user_id || firstMember.user_id,
-                leader_name: firstMember.name,
-                leader_email: firstMember.email,
-                leader_phone: firstMember.phone,
+                user_id: firstMember.user_id || firstMember.delegate_user_id || firstMember.pass_id,
+                name: firstMember.name,
+                email: firstMember.email,
                 college: firstMember.college,
-                college_location: firstMember.college_location,
-                tier: firstMember.tier || firstMember.pass_type || 'Unknown',
-                tier_amount: firstMember.amount || 0,
-                members_count: groupReg.member_count,
+                phone: firstMember.phone,
+                college_location: firstMember.college_location || '',
+                selection_type: firstMember.selection_type || (firstMember.tier ? 'tier' : 'pass'),
+                tier: firstMember.tier,
+                delegate_user_id: firstMember.delegate_user_id,
+                pass_type: firstMember.pass_type,
+                pass_tier: firstMember.pass_tier,
+                pass_id: firstMember.pass_id,
+                amount: firstMember.amount || 0,
                 total_amount: groupReg.total_amount,
                 payment_transaction_id: groupReg.payment_transaction_id,
                 payment_screenshot_path: groupReg.payment_screenshot_path,
@@ -142,7 +160,9 @@ export class AdminService {
                 reviewed_at: groupReg.reviewed_at,
                 reviewed_by: groupReg.reviewed_by,
                 rejection_reason: groupReg.rejection_reason,
-                member_selections: memberSelections
+                member_count: groupReg.member_count,
+                // Add the enhanced members array with all member details
+                members: enhancedMembers
               });
             }
           }
@@ -528,7 +548,7 @@ export class AdminService {
   /**
    * Generate Excel export data
    */
-  static generateExcelData(registrations: RegistrationView[]): string {
+  static generateExcelData(registrations: EnhancedRegistrationView[]): string {
     const headers = [
       'Group ID',
       'Delegate User ID',
@@ -553,14 +573,14 @@ export class AdminService {
       headers.join(','),
       ...registrations.map(reg => [
         reg.group_id,
-        reg.delegate_user_id,
-        `"${reg.leader_name}"`,
-        reg.leader_email,
+        reg.user_id || reg.delegate_user_id,
+        `"${reg.name}"`,
+        reg.email,
         `"${reg.college}"`,
-        reg.leader_phone,
+        reg.phone,
         `"${reg.college_location || ''}"`,
-        `"${reg.tier}"`,
-        reg.tier_amount,
+        `"${reg.tier || reg.pass_type || ''}"`,
+        reg.amount,
         reg.total_amount,
         reg.payment_transaction_id,
         reg.status,

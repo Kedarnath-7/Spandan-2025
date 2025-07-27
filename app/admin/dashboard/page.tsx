@@ -8,7 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { AdminService } from '@/lib/services/adminService';
-import type { RegistrationView } from '@/lib/types';
+import type { EnhancedRegistrationView } from '@/lib/types';
+import { 
+  getEventRegistrations
+} from '@/lib/services/eventRegistrationService';
 import { 
   Users, 
   Calendar, 
@@ -31,9 +34,14 @@ interface DashboardStats {
   totalRevenue: number;
   pendingApprovals: number;
   totalEvents: number;
+  // Enhanced breakdown stats
+  tierPassRegistrations: number;
+  eventRegistrations: number;
+  tierPassRevenue: number;
+  eventRevenue: number;
 }
 
-interface Registration {
+interface UnifiedRegistration {
   id: string;
   groupId: string;
   contactName: string;
@@ -42,6 +50,9 @@ interface Registration {
   status: string;
   createdAt: string;
   totalAmount: number;
+  type: 'tier_pass' | 'event';
+  eventName?: string;
+  college?: string;
 }
 
 export default function AdminDashboard() {
@@ -50,9 +61,13 @@ export default function AdminDashboard() {
     totalRegistrations: 0,
     totalRevenue: 0,
     pendingApprovals: 0,
-    totalEvents: 0
+    totalEvents: 0,
+    tierPassRegistrations: 0,
+    eventRegistrations: 0,
+    tierPassRevenue: 0,
+    eventRevenue: 0
   });
-  const [recentRegistrations, setRecentRegistrations] = useState<Registration[]>([]);
+  const [recentRegistrations, setRecentRegistrations] = useState<UnifiedRegistration[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Check admin authentication using simple localStorage session
@@ -80,35 +95,76 @@ export default function AdminDashboard() {
   const loadDashboardData = async () => {
     setIsLoading(true);
     try {
-      // Load dashboard statistics
-      const statsResult = await AdminService.getDashboardStats();
-      if (statsResult.success && statsResult.data) {
-        setStats({
-          totalRegistrations: statsResult.data.totalRegistrations,
-          totalRevenue: statsResult.data.totalRevenue,
-          pendingApprovals: statsResult.data.pendingApprovals,
-          totalEvents: 0 // Will be updated when events management is connected
-        });
-      }
+      // Load tier/pass registrations
+      const tierPassResult = await AdminService.getAllRegistrations();
+      const tierPassData = tierPassResult.success ? tierPassResult.data || [] : [];
+      
+      // Load event registrations
+      const eventRegResult = await getEventRegistrations();
+      const eventData = eventRegResult.success ? eventRegResult.data || [] : [];
 
-      // Load recent registrations (limit to 5 for dashboard)
-      const registrationsResult = await AdminService.getAllRegistrations();
-      if (registrationsResult.success && registrationsResult.data) {
-        const formattedRegistrations: Registration[] = registrationsResult.data
-          .slice(0, 5)
-          .map((reg: RegistrationView) => ({
-            id: reg.group_id, // Using group_id as id
-            groupId: reg.group_id,
-            contactName: reg.leader_name,
-            contactEmail: reg.leader_email,
-            memberCount: reg.members_count,
-            status: reg.status,
-            createdAt: reg.created_at,
-            totalAmount: reg.total_amount
-          }));
-        
-        setRecentRegistrations(formattedRegistrations);
-      }
+      // Calculate unified stats
+      const tierPassStats = {
+        total: tierPassData.length,
+        pending: tierPassData.filter(r => r.status === 'pending').length,
+        revenue: tierPassData.reduce((sum, r) => sum + (r.total_amount || 0), 0)
+      };
+
+      const eventStats = {
+        total: eventData.length,
+        pending: eventData.filter((r: any) => r.status === 'pending').length,
+        revenue: eventData.reduce((sum: number, r: any) => sum + (r.total_amount || 0), 0)
+      };
+
+      setStats({
+        totalRegistrations: tierPassStats.total + eventStats.total,
+        totalRevenue: tierPassStats.revenue + eventStats.revenue,
+        pendingApprovals: tierPassStats.pending + eventStats.pending,
+        totalEvents: eventData.length,
+        tierPassRegistrations: tierPassStats.total,
+        eventRegistrations: eventStats.total,
+        tierPassRevenue: tierPassStats.revenue,
+        eventRevenue: eventStats.revenue
+      });
+
+      // Create unified recent registrations (last 5 from both systems)
+      const tierPassRecent: UnifiedRegistration[] = tierPassData
+        .slice(0, 3)
+        .map((reg: EnhancedRegistrationView) => ({
+          id: reg.group_id,
+          groupId: reg.group_id,
+          contactName: reg.name,
+          contactEmail: reg.email,
+          memberCount: reg.member_count,
+          status: reg.status,
+          createdAt: reg.created_at,
+          totalAmount: reg.total_amount,
+          type: 'tier_pass' as const,
+          college: reg.college
+        }));
+
+      const eventRecent: UnifiedRegistration[] = eventData
+        .slice(0, 3)
+        .map((reg: any) => ({
+          id: reg.group_id,
+          groupId: reg.group_id,
+          contactName: reg.contact_name,
+          contactEmail: reg.contact_email,
+          memberCount: reg.member_count,
+          status: reg.status,
+          createdAt: reg.created_at,
+          totalAmount: reg.total_amount,
+          type: 'event' as const,
+          eventName: reg.event_name
+        }));
+
+      // Combine and sort by date, take latest 5
+      const allRecent = [...tierPassRecent, ...eventRecent]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 5);
+
+      setRecentRegistrations(allRecent);
+      
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       toast.error('Failed to load dashboard data');
@@ -170,8 +226,8 @@ export default function AdminDashboard() {
             </Button>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          {/* Enhanced Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-gray-300">
@@ -181,9 +237,10 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-white">{stats.totalRegistrations}</div>
-                <p className="text-xs text-gray-400">
-                  Active participants
-                </p>
+                <div className="flex gap-4 mt-2 text-xs">
+                  <span className="text-blue-400">Tier/Pass: {stats.tierPassRegistrations}</span>
+                  <span className="text-orange-400">Events: {stats.eventRegistrations}</span>
+                </div>
               </CardContent>
             </Card>
 
@@ -196,9 +253,10 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-white">₹{stats.totalRevenue.toLocaleString()}</div>
-                <p className="text-xs text-gray-400">
-                  Registration fees collected
-                </p>
+                <div className="flex gap-4 mt-2 text-xs">
+                  <span className="text-blue-400">Tier/Pass: ₹{stats.tierPassRevenue.toLocaleString()}</span>
+                  <span className="text-orange-400">Events: ₹{stats.eventRevenue.toLocaleString()}</span>
+                </div>
               </CardContent>
             </Card>
 
@@ -220,14 +278,14 @@ export default function AdminDashboard() {
             <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-gray-300">
-                  Total Events
+                  Event Registrations
                 </CardTitle>
                 <Calendar className="h-4 w-4 text-blue-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-white">{stats.totalEvents}</div>
+                <div className="text-2xl font-bold text-white">{stats.eventRegistrations}</div>
                 <p className="text-xs text-gray-400">
-                  Available events
+                  Event participants
                 </p>
               </CardContent>
             </Card>
@@ -323,14 +381,21 @@ export default function AdminDashboard() {
                 <div>
                   <CardTitle className="text-white">Recent Registrations</CardTitle>
                   <CardDescription className="text-gray-300">
-                    Latest participant registrations
+                    Latest registrations from all systems
                   </CardDescription>
                 </div>
-                <Link href="/admin/registrations">
-                  <Button variant="outline" className="border-slate-600 text-gray-300 hover:bg-slate-700">
-                    View All
-                  </Button>
-                </Link>
+                <div className="flex gap-2">
+                  <Link href="/admin/registrations">
+                    <Button variant="outline" size="sm" className="border-blue-600 text-blue-400 hover:bg-blue-600/20">
+                      Tier/Pass
+                    </Button>
+                  </Link>
+                  <Link href="/admin/event-registrations">
+                    <Button variant="outline" size="sm" className="border-orange-600 text-orange-400 hover:bg-orange-600/20">
+                      Events
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -343,15 +408,35 @@ export default function AdminDashboard() {
                   {recentRegistrations.map((registration) => (
                     <div 
                       key={registration.id}
-                      className="flex items-center justify-between p-4 bg-slate-700/50 rounded-lg"
+                      className="flex items-center justify-between p-4 bg-slate-700/50 rounded-lg border border-slate-600/30"
                     >
                       <div className="flex items-center space-x-4">
-                        <div className="bg-purple-600 p-2 rounded-full">
-                          <Users className="w-4 h-4 text-white" />
+                        <div className={`p-2 rounded-full ${
+                          registration.type === 'tier_pass' 
+                            ? 'bg-blue-600/20 text-blue-400' 
+                            : 'bg-orange-600/20 text-orange-400'
+                        }`}>
+                          {registration.type === 'tier_pass' ? (
+                            <Star className="w-4 h-4" />
+                          ) : (
+                            <Calendar className="w-4 h-4" />
+                          )}
                         </div>
                         <div>
-                          <h4 className="text-white font-medium">{registration.contactName}</h4>
-                          <div className="flex items-center space-x-4 text-sm text-gray-400">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-white font-medium">{registration.contactName}</h4>
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs ${
+                                registration.type === 'tier_pass' 
+                                  ? 'border-blue-400 text-blue-400' 
+                                  : 'border-orange-400 text-orange-400'
+                              }`}
+                            >
+                              {registration.type === 'tier_pass' ? 'Tier/Pass' : 'Event'}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center space-x-4 text-sm text-gray-400 mt-1">
                             <span className="flex items-center">
                               <Mail className="w-3 h-3 mr-1" />
                               {registration.contactEmail}
@@ -360,12 +445,24 @@ export default function AdminDashboard() {
                               <Users className="w-3 h-3 mr-1" />
                               {registration.memberCount} members
                             </span>
+                            {registration.eventName && (
+                              <span className="flex items-center">
+                                <Calendar className="w-3 h-3 mr-1" />
+                                {registration.eventName}
+                              </span>
+                            )}
+                            {registration.college && (
+                              <span className="flex items-center">
+                                <MapPin className="w-3 h-3 mr-1" />
+                                {registration.college}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center space-x-4">
                         <div className="text-right">
-                          <div className="text-white font-medium">₹{registration.totalAmount}</div>
+                          <div className="text-white font-medium">₹{registration.totalAmount.toLocaleString()}</div>
                           <div className="text-xs text-gray-400">
                             {new Date(registration.createdAt).toLocaleDateString()}
                           </div>
@@ -385,8 +482,8 @@ export default function AdminDashboard() {
           </Card>
         </div>
       </div>
-      
-      <Footer ctaText="ADMIN PANEL - SPANDAN 2025" />
+
+      <Footer ctaText="WITH GREAT POWER COMES GREAT RESPONSIBILITY" />
     </div>
   );
 }

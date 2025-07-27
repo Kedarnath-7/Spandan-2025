@@ -218,6 +218,14 @@ export default function AdminEventRegistrationsPage() {
             ...regResult.data,
             group_members: regResult.data.members?.map(m => `${m.name} (${m.user_id})`).join(', ')
           };
+          
+          console.log('=== ADMIN PAGE EMAIL DEBUG ===');
+          console.log('Group ID:', groupId);
+          console.log('Registration data keys:', Object.keys(regResult.data));
+          console.log('Event name in data:', regResult.data.event_name);
+          console.log('User object for email:', JSON.stringify(user, null, 2));
+          console.log('Template type:', template?.type);
+          
           try {
             await sendApprovalEmail({ user, template });
           } catch (emailError) {

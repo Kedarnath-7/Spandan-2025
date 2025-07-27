@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Registration Confirmation - SPANDAN 2025</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+        
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 30px 20px; text-align: center;">
+            <div style="background-color: rgba(255, 255, 255, 0.1); border-radius: 50%; width: 80px; height: 80px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
+                <span style="color: white; font-size: 36px;">🎪</span>
+            </div>
+            <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 600;">SPANDAN 2025</h1>
+            <p style="color: rgba(255, 255, 255, 0.9); margin: 5px 0 0; font-size: 16px;">Event Registration Confirmed</p>
+        </div>
+
+        <!-- Main Content -->
+        <div style="padding: 40px 30px;">
+            <!-- Welcome Message -->
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h2 style="color: #2d3748; margin: 0 0 10px; font-size: 24px; font-weight: 600;">🎉 Event Registration Confirmed!</h2>
+                <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin: 0;">
+                    Dear <strong>{{name}}</strong>,
+                </p>
+            </div>
+
+            <!-- Confirmation Text -->
+            <div style="background-color: #f0fff4; border-left: 4px solid #48bb78; padding: 20px; margin-bottom: 30px; border-radius: 0 8px 8px 0;">
+                <p style="color: #2d3748; font-size: 16px; line-height: 1.7; margin: 0;">
+                    Congratulations! Your registration for <strong>{{event_name}}</strong> at <strong>SPANDAN 2025 - Excelsior: The Comic Chronicles</strong> has been successfully confirmed. Get ready for an amazing experience during the event from <strong>August 25th to August 30th</strong> at <strong>JIPMER, Pudicherry</strong>.
+                </p>
+            </div>
+
+            <!-- Event Details Card -->
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 2px; margin-bottom: 30px;">
+                <div style="background-color: white; border-radius: 10px; padding: 25px;">
+                    <h3 style="color: #2d3748; margin: 0 0 20px; font-size: 20px; font-weight: 600; text-align: center;">
+                        🎯 Event Registration Details
+                    </h3>
+                    
+                    <div style="display: grid; gap: 15px;">
+                        <div style="display: flex; align-items: center; padding: 12px; background-color: #f7fafc; border-radius: 8px;">
+                            <span style="color: #4299e1; font-size: 18px; margin-right: 12px;">👤</span>
+                            <div>
+                                <strong style="color: #2d3748;">Participant Name:</strong>
+                                <span style="color: #4a5568; margin-left: 8px;">{{name}}</span>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; align-items: center; padding: 12px; background-color: #f7fafc; border-radius: 8px;">
+                            <span style="color: #48bb78; font-size: 18px; margin-right: 12px;">🏫</span>
+                            <div>
+                                <strong style="color: #2d3748;">College:</strong>
+                                <span style="color: #4a5568; margin-left: 8px;">{{college}}</span>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; align-items: center; padding: 12px; background-color: #fff5f5; border-radius: 8px; border: 2px solid #f093fb;">
+                            <span style="color: #e53e3e; font-size: 18px; margin-right: 12px;">🎪</span>
+                            <div>
+                                <strong style="color: #2d3748;">Event Name:</strong>
+                                <span style="color: #e53e3e; margin-left: 8px; font-weight: 600;">{{event_name}}</span>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; align-items: center; padding: 12px; background-color: #edf2f7; border-radius: 8px; border: 2px dashed #4299e1;">
+                            <span style="color: #4299e1; font-size: 18px; margin-right: 12px;">🆔</span>
+                            <div>
+                                <strong style="color: #2d3748;">Participant ID:</strong>
+                                <span style="color: #4299e1; margin-left: 8px; font-weight: 600; font-size: 16px;">{{user_id}}</span>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; align-items: center; padding: 12px; background-color: #f7fafc; border-radius: 8px;">
+                            <span style="color: #805ad5; font-size: 18px; margin-right: 12px;">📅</span>
+                            <div>
+                                <strong style="color: #2d3748;">Registration Date:</strong>
+                                <span style="color: #4a5568; margin-left: 8px;">{{created_at}}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Important Notice -->
+            <div style="background-color: #fff5f5; border: 1px solid #fed7d7; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+                <div style="display: flex; align-items: flex-start;">
+                    <span style="color: #e53e3e; font-size: 20px; margin-right: 12px;">📌</span>
+                    <div>
+                        <h4 style="color: #c53030; margin: 0 0 10px; font-size: 16px; font-weight: 600;">Important Information</h4>
+                        <p style="color: #742a2a; font-size: 14px; line-height: 1.6; margin: 0;">
+                            Please keep your Participant ID <strong style="color: #c53030;">{{user_id}}</strong> handy during the event. This will be required for participation verification and entry to <strong>{{event_name}}</strong>.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Instructions -->
+            <div style="background-color: #f0fff4; border: 1px solid #c6f6d5; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+                <div style="display: flex; align-items: flex-start;">
+                    <span style="color: #38a169; font-size: 20px; margin-right: 12px;">✅</span>
+                    <div>
+                        <h4 style="color: #276749; margin: 0 0 10px; font-size: 16px; font-weight: 600;">What to Bring</h4>
+                        <ul style="color: #22543d; font-size: 14px; line-height: 1.6; margin: 0; padding-left: 20px;">
+                            <li>A printed copy of this confirmation email</li>
+                            <li>Your college ID card for verification</li>
+                            <li>Any specific items mentioned in the event guidelines</li>
+                            <li>Enthusiasm and excitement for a great experience!</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Information -->
+            <div style="text-align: center; padding: 20px; background-color: #f7fafc; border-radius: 8px;">
+                <p style="color: #4a5568; font-size: 14px; margin: 0 0 10px;">
+                    For event-specific queries or assistance, contact us:
+                </p>
+                <p style="color: #4299e1; font-weight: 600; font-size: 16px; margin: 0;">
+                    📧 jsa.jipmer@gmail.com
+                </p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="background-color: #2d3748; color: white; text-align: center; padding: 20px;">
+            <p style="margin: 0 0 10px; font-size: 16px; font-weight: 600;">JIPMER Student Association</p>
+            <p style="margin: 0; font-size: 14px; opacity: 0.8;">JIPMER, Pudicherry • SPANDAN 2025</p>
+        </div>
+    </div>
+</body>
+</html>

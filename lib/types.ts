@@ -344,10 +344,14 @@ export interface EnhancedRegistrationView {
   amount: number;
   total_amount: number;
   payment_transaction_id: string;
+  payment_screenshot_path?: string;
   status: string;
   created_at: string;
+  updated_at?: string;
   reviewed_at?: string;
   reviewed_by?: string;
   rejection_reason?: string;
   member_count: number;
+  // Enhanced members array with full member details including emails
+  members?: EnhancedGroupMember[];
 }

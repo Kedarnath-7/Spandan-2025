@@ -58,14 +58,15 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Replace template variables
+        // Replace template variables with enhanced mapping
         const finalSubject = subject || template?.subject || 'Announcement';
-        const finalBody = (body || template?.body || '').replace(/{{name}}/g, userName || '')
-          .replace(/{{user_id}}/g, user.user_id || user.group_id || '')
-          .replace(/{{event_name}}/g, user.event_name || '')
+        const finalBody = (body || template?.body || '')
+          .replace(/{{name}}/g, userName || '')
+          .replace(/{{user_id}}/g, user.delegate_user_id || user.user_id || user.group_id || '')
+          .replace(/{{event_name}}/g, user.event_name || 'SPANDAN 2025 - Excelsior: The Comic Chronicles')
           .replace(/{{group_id}}/g, user.group_id || '')
           .replace(/{{college}}/g, user.college || '')
-          .replace(/{{tier_pass}}/g, user.tier_pass || '')
+          .replace(/{{tier_pass}}/g, user.tier || user.tier_pass || user.pass_type || '')
           .replace(/{{created_at}}/g, user.created_at ? new Date(user.created_at).toLocaleDateString() : '');
 
         // Send email via the send API

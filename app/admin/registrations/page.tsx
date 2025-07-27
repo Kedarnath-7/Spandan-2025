@@ -38,7 +38,7 @@ import {
   Eye
 } from 'lucide-react';
 import { AdminService } from '@/lib/services/adminService';
-import type { RegistrationView } from '@/lib/types';
+import type { EnhancedRegistrationView } from '@/lib/types';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 
@@ -46,8 +46,8 @@ export default function AdminRegistrationsPage() {
   const router = useRouter();
   const { toast } = useToast();
   
-  const [registrations, setRegistrations] = useState<RegistrationView[]>([]);
-  const [filteredRegistrations, setFilteredRegistrations] = useState<RegistrationView[]>([]);
+  const [registrations, setRegistrations] = useState<EnhancedRegistrationView[]>([]);
+  const [filteredRegistrations, setFilteredRegistrations] = useState<EnhancedRegistrationView[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [stats, setStats] = useState({
@@ -68,7 +68,7 @@ export default function AdminRegistrationsPage() {
   const [imageLoading, setImageLoading] = useState(false);
   
   // Registration details modal state
-  const [selectedRegistration, setSelectedRegistration] = useState<RegistrationView | null>(null);
+  const [selectedRegistration, setSelectedRegistration] = useState<EnhancedRegistrationView | null>(null);
   const [showRegistrationDetails, setShowRegistrationDetails] = useState(false);
   const [groupMembers, setGroupMembers] = useState<any[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
@@ -118,7 +118,7 @@ export default function AdminRegistrationsPage() {
   };
 
   // Handle view details with group members
-  const handleViewDetails = async (registration: RegistrationView) => {
+  const handleViewDetails = async (registration: EnhancedRegistrationView) => {
     setSelectedRegistration(registration);
     setShowRegistrationDetails(true);
     await fetchGroupMembers(registration.group_id);
@@ -136,10 +136,10 @@ export default function AdminRegistrationsPage() {
         // Update stats
         const newStats = {
           total: result.data.length,
-          pending: result.data.filter((r: RegistrationView) => r.status === 'pending').length,
-          approved: result.data.filter((r: RegistrationView) => r.status === 'approved').length,
-          rejected: result.data.filter((r: RegistrationView) => r.status === 'rejected').length,
-          totalRevenue: result.data.reduce((sum: number, r: RegistrationView) => sum + (r.total_amount || 0), 0)
+          pending: result.data.filter((r: EnhancedRegistrationView) => r.status === 'pending').length,
+          approved: result.data.filter((r: EnhancedRegistrationView) => r.status === 'approved').length,
+          rejected: result.data.filter((r: EnhancedRegistrationView) => r.status === 'rejected').length,
+          totalRevenue: result.data.reduce((sum: number, r: EnhancedRegistrationView) => sum + (r.total_amount || 0), 0)
         };
         setStats(newStats);
       } else {
@@ -314,9 +314,9 @@ export default function AdminRegistrationsPage() {
     // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter(registration => 
-        (registration.leader_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (registration.leader_email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (registration.leader_phone || '').includes(searchTerm) ||
+        (registration.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (registration.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (registration.phone || '').includes(searchTerm) ||
         (registration.college || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (registration.group_id || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
@@ -335,7 +335,7 @@ export default function AdminRegistrationsPage() {
         case 'oldest':
           return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
         case 'name':
-          return (a.leader_name || '').localeCompare(b.leader_name || '');
+          return (a.name || '').localeCompare(b.name || '');
         case 'status':
           return (a.status || '').localeCompare(b.status || '');
         default:
@@ -692,8 +692,8 @@ export default function AdminRegistrationsPage() {
                         <div className="flex items-start justify-between">
                           <div>
                             <h3 className="text-lg font-semibold text-white">Group: {registration.group_id}</h3>
-                            <p className="text-gray-300">{registration.leader_name || 'Unknown'} (Leader)</p>
-                            <p className="text-sm text-gray-400 mt-1">{registration.leader_email || 'No email provided'}</p>
+                            <p className="text-gray-300">{registration.name || 'Unknown'} (Leader)</p>
+                            <p className="text-sm text-gray-400 mt-1">{registration.email || 'No email provided'}</p>
                           </div>
                           <div className="flex gap-2">
                             {getStatusBadge(registration.status || 'unknown')}
@@ -703,11 +703,11 @@ export default function AdminRegistrationsPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="flex items-center gap-2 text-gray-300">
                             <Phone className="w-4 h-4" />
-                            <span>{registration.leader_phone || 'No phone provided'}</span>
+                            <span>{registration.phone || 'No phone provided'}</span>
                           </div>
                           <div className="flex items-center gap-2 text-gray-300">
                             <Users className="w-4 h-4" />
-                            <span>{registration.members_count || 0} members</span>
+                            <span>{registration.member_count || 0} members</span>
                           </div>
                           <div className="flex items-center gap-2 text-gray-300">
                             <MapPin className="w-4 h-4" />
@@ -722,13 +722,13 @@ export default function AdminRegistrationsPage() {
                         {/* Member Selections */}
                         <div className="bg-gray-800/30 rounded-lg p-4 border border-gray-600/20">
                           <h4 className="text-sm font-medium text-gray-200 mb-3">Members & Selections</h4>
-                          {registration.member_selections && registration.member_selections.length > 0 ? (
+                          {registration.members && registration.members.length > 0 ? (
                             (() => {
-                              const tierSelections = registration.member_selections.filter((m: any) => 
-                                m.selection && ['Collectors Print', 'Deluxe Edition', 'Issue #1'].includes(m.selection)
+                              const tierSelections = registration.members.filter((m: any) => 
+                                m.tier && ['Collectors Print', 'Deluxe Edition', 'Issue #1'].includes(m.tier)
                               );
-                              const passSelections = registration.member_selections.filter((m: any) => 
-                                m.selection && ['Nexus Arena', 'Nexus Spotlight', 'Nexus Forum'].includes(m.selection)
+                              const passSelections = registration.members.filter((m: any) => 
+                                m.pass_type && ['Nexus Arena', 'Nexus Spotlight', 'Nexus Forum'].includes(m.pass_type)
                               );
                               const tierAmount = tierSelections.reduce((sum: number, m: any) => sum + (m.amount || 0), 0);
                               const passAmount = passSelections.reduce((sum: number, m: any) => sum + (m.amount || 0), 0);
@@ -763,7 +763,7 @@ export default function AdminRegistrationsPage() {
                             })()
                           ) : (
                             <div className="text-center py-2">
-                              <span className="text-gray-400 text-sm">No member selection data available</span>
+                              <span className="text-gray-400 text-sm">No member data available</span>
                             </div>
                           )}
                         </div>
@@ -978,7 +978,7 @@ export default function AdminRegistrationsPage() {
                     </div>
                     <div>
                       <span className="text-gray-400">Member Count:</span>
-                      <p className="text-white">{selectedRegistration.members_count}</p>
+                      <p className="text-white">{selectedRegistration.member_count}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -993,15 +993,15 @@ export default function AdminRegistrationsPage() {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-gray-400">Leader Name:</span>
-                      <p className="text-white font-semibold">{selectedRegistration.leader_name}</p>
+                      <p className="text-white font-semibold">{selectedRegistration.name}</p>
                     </div>
                     <div>
                       <span className="text-gray-400">Email:</span>
-                      <p className="text-white">{selectedRegistration.leader_email}</p>
+                      <p className="text-white">{selectedRegistration.email}</p>
                     </div>
                     <div>
                       <span className="text-gray-400">Phone:</span>
-                      <p className="text-white">{selectedRegistration.leader_phone}</p>
+                      <p className="text-white">{selectedRegistration.phone}</p>
                     </div>
                     <div>
                       <span className="text-gray-400">College:</span>
@@ -1014,13 +1014,53 @@ export default function AdminRegistrationsPage() {
               {/* Group Members */}
               <Card className="bg-slate-700/50 border-slate-600">
                 <CardHeader>
-                  <CardTitle className="text-lg text-white">Group Members ({selectedRegistration.members_count})</CardTitle>
+                  <CardTitle className="text-lg text-white">Group Members ({selectedRegistration.member_count})</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {loadingMembers ? (
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="w-6 h-6 animate-spin text-purple-400 mr-2" />
                       <span className="text-gray-400">Loading group members...</span>
+                    </div>
+                  ) : selectedRegistration.members && selectedRegistration.members.length > 0 ? (
+                    <div className="space-y-3">
+                      {selectedRegistration.members.map((member: any, index: number) => (
+                        <div key={member.id || index} className="p-3 bg-slate-600/50 rounded-lg">
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-sm">
+                            <div>
+                              <span className="text-gray-400">Name:</span>
+                              <p className="text-white font-semibold">{member.name}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">User ID:</span>
+                              <p className="text-white font-semibold">{member.user_id || member.delegate_user_id || member.pass_id || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Selection:</span>
+                              <p className="text-cyan-400 font-semibold">
+                                {member.tier || 
+                                  (member.pass_type && member.pass_tier ? `${member.pass_type} ${member.pass_tier}` : member.pass_type) || 
+                                  'N/A'
+                                }
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Amount:</span>
+                              <p className="text-green-400 font-semibold">₹{member.amount || 0}</p>
+                            </div>
+                          </div>
+                          <div className="mt-2 text-xs grid grid-cols-2 gap-2">
+                            <div>
+                              <span className="text-gray-400">Email: </span>
+                              <span className="text-blue-400">{member.email}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">College: </span>
+                              <span className="text-purple-400">{member.college}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ) : groupMembers && groupMembers.length > 0 ? (
                     <div className="space-y-3">
@@ -1048,39 +1088,9 @@ export default function AdminRegistrationsPage() {
                             </div>
                             <div>
                               <span className="text-gray-400">Amount:</span>
-                              <p className="text-green-400 font-semibold">₹{member.amount || selectedRegistration?.tier_amount}</p>
+                              <p className="text-green-400 font-semibold">₹{member.amount || selectedRegistration?.amount}</p>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : selectedRegistration?.member_selections && selectedRegistration.member_selections.length > 0 ? (
-                    <div className="space-y-3">
-                      <div className="text-center py-2">
-                        <p className="text-yellow-400 text-sm">⚠️ Group member details not available, showing selection data:</p>
-                      </div>
-                      {selectedRegistration.member_selections.map((member: any, index: number) => (
-                        <div key={index} className="p-3 bg-slate-600/50 rounded-lg">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
-                            <div>
-                              <span className="text-gray-400">Name:</span>
-                              <p className="text-white font-semibold">{member.name}</p>
-                            </div>
-                            <div>
-                              <span className="text-gray-400">Selection:</span>
-                              <p className="text-cyan-400 font-semibold">{member.selection}</p>
-                            </div>
-                            <div>
-                              <span className="text-gray-400">Amount:</span>
-                              <p className="text-green-400 font-semibold">₹{member.amount}</p>
-                            </div>
-                          </div>
-                          {member.pass_tier && (
-                            <div className="mt-2 text-xs">
-                              <span className="text-gray-400">Pass Tier: </span>
-                              <span className="text-purple-400">{member.pass_tier}</span>
-                            </div>
-                          )}
                         </div>
                       ))}
                     </div>

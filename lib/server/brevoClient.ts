@@ -20,13 +20,16 @@ export async function sendBrevoEmail({
     throw new Error('BREVO_API_KEY environment variable is required');
   }
 
+  // Brevo API expects specific format
   const emailData = {
     to,
-    sender: sender || { name: 'Spandan Admin', email: 'noreply@spandan.com' },
+    sender: sender || { name: 'JIPMER STUDENT ASSOCIATION', email: 'jsa@jipmerspandan.in' },
     subject,
     htmlContent,
     ...(attachments && attachments.length > 0 && { attachment: attachments })
   };
+
+  console.log('Sending email with data:', JSON.stringify(emailData, null, 2));
 
   const response = await fetch(`${BREVO_API_URL}/smtp/email`, {
     method: 'POST',
@@ -38,11 +41,20 @@ export async function sendBrevoEmail({
     body: JSON.stringify(emailData)
   });
 
+  const responseText = await response.text();
+  console.log('Brevo API response status:', response.status);
+  console.log('Brevo API response:', responseText);
+
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
+    let errorData;
+    try {
+      errorData = JSON.parse(responseText);
+    } catch {
+      errorData = { message: responseText };
+    }
     throw new Error(`Brevo API error: ${response.status} ${response.statusText} - ${JSON.stringify(errorData)}`);
   }
 
-  const result = await response.json();
+  const result = JSON.parse(responseText);
   return result;
 }
