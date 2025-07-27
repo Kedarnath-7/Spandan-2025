@@ -57,9 +57,9 @@ const REGISTRATION_TIERS = [
     features: [
       'Inaugural night (day 1)',
       'Chorea night (day 2)',
-      'Aalap finale (day 3)',
+      'Alaap finale (day 3)',
       'Tinnitus finale (day 4)',
-      'DJ night (day 5)',
+      'DJ night (day 1, 5)',
       '2 minor proshows'
     ],
     bgColor: 'bg-gradient-to-br from-amber-500 via-orange-600 to-red-700',
@@ -75,12 +75,12 @@ const REGISTRATION_TIERS = [
     features: [
       'Inaugural night (day 1)',
       'Chorea night (day 2)',
-      'Aalap finale (day 3)',
+      'Alaap finale (day 3)',
       'Tinnitus finale (day 4)',
       'DJ night (all 3 days)',
       '2 minor proshows',
       'Major proshow access',
-      'Dernier CRI access'
+      'Dernier Cri access'
     ],
     bgColor: 'bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700',
     textColor: 'text-emerald-100',
@@ -134,7 +134,7 @@ const REGISTRATION_PASSES = [
     details: ['Events registration fee included with price of pass (i.e. No extra charges — event registrations are covered in the LIT Pass). ', 'For detailed amenities refer to the brochure.'], 
     features: [
       'Offline Literary Events',
-      'Quzzing Events'
+      'Quizzing Events'
     ],
     bgColor: 'bg-gradient-to-br from-violet-600 via-purple-700 to-indigo-800',
     textColor: 'text-violet-100',
