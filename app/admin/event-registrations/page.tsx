@@ -406,7 +406,7 @@ export default function AdminEventRegistrationsPage() {
               <Button
                 onClick={() => router.push('/admin/dashboard')}
                 variant="outline"
-                className="border-cyan-400/30 text-cyan-400 hover:bg-cyan-400/10"
+                className=" bg-blue-600/20 border-blue-200/50 text-white hover:border-blue-300 hover:text-black"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Dashboard
@@ -416,7 +416,7 @@ export default function AdminEventRegistrationsPage() {
                 <Button
                   onClick={loadRegistrations}
                   variant="outline"
-                  className="border-purple-400/30 text-purple-400 hover:bg-purple-400/10"
+                  className=" bg-blue-600/20 border-blue-200/50 text-white hover:border-blue-300 hover:text-black"
                   disabled={loadingData}
                 >
                   <RefreshCw className={`w-4 h-4 mr-2 ${loadingData ? 'animate-spin' : ''}`} />
@@ -572,7 +572,7 @@ export default function AdminEventRegistrationsPage() {
                     setSortBy('newest');
                   }}
                   variant="outline"
-                  className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                  className=" bg-blue-600/20 border-blue-200/50 text-white hover:border-blue-300 hover:text-black"
                 >
                   Clear Filters
                 </Button>
@@ -725,7 +725,7 @@ export default function AdminEventRegistrationsPage() {
                           {/* View Details Button */}
                           <Button
                             variant="outline"
-                            className="border-blue-500/50 text-blue-400 hover:bg-blue-600/20 hover:border-blue-400 w-full"
+                            className="border-blue-500/50 text-black hover:bg-blue-600/20 hover:border-blue-400 w-full hover:text-white"
                             onClick={() => handleViewDetails(registration.group_id)}
                             disabled={processingId === registration.group_id}
                           >
@@ -740,7 +740,7 @@ export default function AdminEventRegistrationsPage() {
                           {/* View Payment Proof Button */}
                           <Button
                             variant="outline"
-                            className="border-purple-500/50 text-purple-400 hover:bg-purple-600/20 hover:border-purple-400 w-full"
+                            className="border-purple-500/50 text-black-400 hover:bg-purple-600/20 hover:border-purple-400 w-full hover:text-white"
                             onClick={() => handleShowPaymentProof(registration.payment_screenshot_path!)}
                             disabled={!registration.payment_screenshot_path}
                           >
@@ -753,7 +753,7 @@ export default function AdminEventRegistrationsPage() {
                             <div className="grid grid-cols-2 gap-2">
                               <Button
                                 variant="outline"
-                                className="border-green-500/50 text-green-400 hover:bg-green-600/20 hover:border-green-400"
+                                className="bg-green-600 border-green-500/50 text-white hover:bg-green-600/20 hover:border-green-400 hover:text-white"
                                 onClick={() => handleApprove(registration.group_id)}
                                 disabled={processingId === registration.group_id}
                               >
@@ -766,7 +766,7 @@ export default function AdminEventRegistrationsPage() {
                               </Button>
                               <Button
                                 variant="outline"
-                                className="border-red-500/50 text-red-400 hover:bg-red-600/20 hover:border-red-400"
+                                className="bg-red-600 border-red-500/50 text-white hover:bg-red-600/20 hover:border-red-400 hover:text-white"
                                 onClick={() => {
                                   setSelectedRegistration({ ...registration, members: [] } as any);
                                   setShowRejectDialog(true);
@@ -913,7 +913,7 @@ export default function AdminEventRegistrationsPage() {
                         <Button
                           onClick={() => handleShowPaymentProof(selectedRegistration.payment_screenshot_path!)}
                           variant="outline"
-                          className="border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white"
+                          className="border-purple-500 text-black hover:bg-purple-500 hover:text-white"
                         >
                           <ImageIcon className="w-4 h-4 mr-2" />
                           View Payment Proof

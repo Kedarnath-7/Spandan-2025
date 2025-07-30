@@ -876,7 +876,7 @@ export default function EventsPage() {
                   </div>
                   
                   <div className="flex justify-between pt-6">
-                    <Button onClick={resetRegistration} variant="outline" className="border-gray-600 text-gray-300 hover:bg-gray-700">
+                    <Button onClick={resetRegistration} variant="outline" className=" bg-blue-600/20 border-blue-200/50 text-white hover:border-blue-300 hover:text-black">
                       Back to Events
                     </Button>
                     <Button 
@@ -1087,7 +1087,7 @@ export default function EventsPage() {
                         <Button
                           onClick={() => setCurrentStep(2)}
                           variant="outline"
-                          className="border-slate-600 text-gray-300 hover:bg-slate-700"
+                          className=" bg-blue-600/20 border-blue-200/50 text-white hover:border-blue-300 hover:text-black"
                         >
                           Back to Details
                         </Button>
@@ -1180,7 +1180,7 @@ export default function EventsPage() {
                     <Button 
                       onClick={() => setCurrentStep(paymentData.transactionId === 'LIT PASS HOLDER' ? 2 : 3)} 
                       variant="outline" 
-                      className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                      className=" bg-blue-600/20 border-blue-200/50 text-white hover:border-blue-300 hover:text-black"
                     >
                       Back
                     </Button>

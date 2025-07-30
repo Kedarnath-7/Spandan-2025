@@ -644,7 +644,7 @@ export default function EventRegistrationPage() {
                   <Button
                     variant="outline"
                     onClick={() => setCurrentStep(1)}
-                    className="border-gray-600 text-gray-400 hover:text-white"
+                    className=" bg-blue-600/20 border-blue-200/50 text-white hover:border-blue-300 hover:text-black"
                   >
                     Back to Events
                   </Button>
@@ -874,7 +874,7 @@ export default function EventRegistrationPage() {
                   <Button
                     variant="outline"
                     onClick={() => setCurrentStep(2)}
-                    className="border-gray-600 text-gray-400 hover:text-white"
+                    className=" bg-blue-600/20 border-blue-200/50 text-white hover:border-blue-300 hover:text-black"
                   >
                     Back to Details
                   </Button>

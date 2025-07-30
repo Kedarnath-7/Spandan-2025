@@ -818,7 +818,7 @@ export default function AdminRegistrationsPage() {
                           {/* View Details Button */}
                           <Button
                             variant="outline"
-                            className="border-purple-500/50 text-purple-400 hover:bg-purple-600/20 hover:border-purple-400 w-full"
+                            className="border-purple-500/50 text-black hover:bg-purple-600/20 hover:border-purple-400 w-full hover:text-white"
                             onClick={() => handleViewDetails(registration)}
                           >
                             <Eye className="w-4 h-4 mr-2" />
@@ -828,7 +828,7 @@ export default function AdminRegistrationsPage() {
                           {/* View Payment Proof Button - Always show */}
                           <Button
                             variant="outline"
-                            className="border-blue-500/50 text-blue-400 hover:bg-blue-600/20 hover:border-blue-400 w-full"
+                            className="border-blue-500/50 text-black hover:bg-blue-600/20 hover:border-blue-400 w-full hover:text-white"
                             onClick={() => viewPaymentScreenshot(registration.payment_screenshot_path || null)}
                           >
                             <ImageIcon className="w-4 h-4 mr-2" />
@@ -840,7 +840,7 @@ export default function AdminRegistrationsPage() {
                             <div className="grid grid-cols-2 gap-2">
                               <Button
                                 variant="outline"
-                                className="border-green-500/50 text-green-400 hover:bg-green-600/20 hover:border-green-400"
+                                className="bg-green-600 border-green-500/50 text-white hover:bg-green-600/20 hover:border-green-400 hover:text-white"
                                 onClick={() => handleApproveRegistration(registration.group_id)}
                                 disabled={processingId === registration.group_id}
                               >
@@ -853,7 +853,7 @@ export default function AdminRegistrationsPage() {
                               </Button>
                               <Button
                                 variant="outline"
-                                className="border-red-500/50 text-red-400 hover:bg-red-600/20 hover:border-red-400"
+                                className="bg-red-600 border-red-500/50 text-white hover:bg-red-600/20 hover:border-red-400 hover:text-white"
                                 onClick={() => handleRejectRegistration(registration.group_id)}
                                 disabled={processingId === registration.group_id}
                               >
@@ -1128,7 +1128,7 @@ export default function AdminRegistrationsPage() {
                         <Button
                           onClick={() => viewPaymentScreenshot(selectedRegistration.payment_screenshot_path!)}
                           variant="outline"
-                          className="border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white"
+                          className="border-blue-500 text-black hover:bg-blue-500 hover:text-white"
                         >
                           <ImageIcon className="w-4 h-4 mr-2" />
                           View Payment Proof

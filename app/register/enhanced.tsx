@@ -121,7 +121,7 @@ const REGISTRATION_PASSES = [
     id: 'Nexus Forum' as PassType,
     name: 'Nexus Forum - LIT Pass',
     tiers: [
-      { id: 'Standard' as PassTier, name: 'Standard', price: 250 },
+      { id: 'Standard' as PassTier, name: 'Standard', price: 500 },
       { id: 'Premium' as PassTier, name: 'Premium', price: 750 }
     ],
     description: 'Literary and academic event access with varying amenities',

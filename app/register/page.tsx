@@ -961,7 +961,7 @@ export default function EnhancedRegisterPage() {
                     <Button
                       onClick={addMember}
                       variant="outline"
-                      className="border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white"
+                      className="bg-purple-500 text-white border-purple-500 hover:text-black"
                     >
                       <Plus className="w-4 h-4 mr-2" />
                       Add Member ({members.length}/25)
@@ -982,7 +982,7 @@ export default function EnhancedRegisterPage() {
                       <div className="text-4xl font-bold">₹{totalAmount}</div>
                       <Button
                         onClick={handleContinueToPayment}
-                        className="mt-2 bg-white text-purple-600 hover:bg-gray-100"
+                        className="mt-2 bg-white text-purple-600 hover:bg-purple-600 hover:text-white transition-colors"
                         disabled={
                           isCheckingDuplicates || 
                           members.some(m => !m.name || !m.email || !m.college || !m.phone) ||
@@ -1189,7 +1189,7 @@ export default function EnhancedRegisterPage() {
                     <Button
                       onClick={() => setCurrentStep(1)}
                       variant="outline"
-                      className="border-slate-600 text-gray-300 hover:bg-slate-700"
+                      className=" bg-blue-600/20 border-blue-200/50 text-white hover:border-blue-300 hover:text-black"
                     >
                       Back to Details
                     </Button>
@@ -1275,7 +1275,7 @@ export default function EnhancedRegisterPage() {
                     <Button
                       onClick={() => setCurrentStep(2)}
                       variant="outline"
-                      className="border-slate-600 text-gray-300 hover:bg-slate-700"
+                      className=" bg-blue-600/20 border-blue-200/50 text-white hover:border-blue-300 hover:text-black"
                     >
                       Back to Payment
                     </Button>

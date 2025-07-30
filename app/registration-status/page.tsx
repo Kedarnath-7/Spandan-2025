@@ -97,7 +97,7 @@ export default function RegistrationStatusPage() {
         case 'Nexus Arena': return 250
         case 'Nexus Spotlight': return 250
         case 'Nexus Forum':
-          return member.pass_tier === 'Premium' ? 750 : 250
+          return member.pass_tier === 'Premium' ? 750 : 500
         default: return 0
       }
     }

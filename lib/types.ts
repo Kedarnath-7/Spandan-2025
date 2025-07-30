@@ -265,7 +265,7 @@ export const TIER_PRICES = {
 export const PASS_PRICES = {
   'Nexus Arena': 250,
   'Nexus Spotlight': 250,
-  'Nexus Forum Standard': 250,
+  'Nexus Forum Standard': 500,
   'Nexus Forum Premium': 750,
 } as const;
 
