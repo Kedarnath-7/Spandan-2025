@@ -206,7 +206,7 @@ export default function ContactPage() {
                     <p className="mt-4 font-semibold">Contact: Skand (9036849005)</p>
                   </div>
                   <a
-                    href="https://forms.gle/mew7emKzUXTCFbs79"
+                    href="https://docs.google.com/forms/d/e/1FAIpQLScHDwdlCzgg2o8GqI_PNODAYI-bhIfv9wGFcUqxOxmVisk6Dw/viewform?vc=0&c=0&w=1&flr=0&usp=mail_form_link"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
