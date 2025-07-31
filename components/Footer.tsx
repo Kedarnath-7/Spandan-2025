@@ -48,6 +48,26 @@ export default function Footer({ ctaText = "THE END... OR IS IT JUST THE BEGINNI
                 </Link>
               </li>
               <li>
+                <a 
+                  href="https://docs.google.com/forms/d/e/1FAIpQLScHDwdlCzgg2o8GqI_PNODAYI-bhIfv9wGFcUqxOxmVisk6Dw/viewform?vc=0&c=0&w=1&flr=0&usp=mail_form_link"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-cyan-400 transition-colors duration-300"
+                >
+                  Accommodation Form
+                </a>
+              </li>
+              <li>
+                <a 
+                  href="https://forms.gle/hAdPNqNpzFrZdoFS8"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-cyan-400 transition-colors duration-300"
+                >
+                  Food Registration
+                </a>
+              </li>
+              <li>
                 <Link href="/about" className="hover:text-cyan-400 transition-colors duration-300">
                   About JIPMER
                 </Link>

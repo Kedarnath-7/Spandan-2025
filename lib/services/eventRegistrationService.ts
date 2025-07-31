@@ -227,14 +227,19 @@ export const getEventRegistrations = async (): Promise<{
 // Get event registration by group ID
 export const getEventRegistrationByGroupId = async (groupId: string): Promise<{
   success: boolean;
-  data?: EventRegistration & { members: EventRegistrationMember[] };
+  data?: EventRegistration & { members: EventRegistrationMember[]; event_category?: string };
   error?: string;
 }> => {
   try {
-    // Get registration details
+    // Get registration details with event category
     const { data: registration, error: regError } = await supabase
       .from('event_registrations')
-      .select('*')
+      .select(`
+        *,
+        events!inner(
+          category
+        )
+      `)
       .eq('group_id', groupId)
       .single()
 
@@ -257,6 +262,7 @@ export const getEventRegistrationByGroupId = async (groupId: string): Promise<{
       success: true,
       data: {
         ...registration,
+        event_category: (registration as any).events?.category,
         members: members || []
       }
     }

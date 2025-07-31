@@ -73,7 +73,7 @@ export default function AdminEventRegistrationsPage() {
   const [sortBy, setSortBy] = useState('newest');
   
   // Selection and Actions
-  const [selectedRegistration, setSelectedRegistration] = useState<(EventRegistration & { members: EventRegistrationMember[] }) | null>(null);
+  const [selectedRegistration, setSelectedRegistration] = useState<(EventRegistration & { members: EventRegistrationMember[]; event_category?: string }) | null>(null);
   const [showRegistrationDetails, setShowRegistrationDetails] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -802,6 +802,36 @@ export default function AdminEventRegistrationsPage() {
           
           {selectedRegistration && (
             <div className="space-y-6">
+              {/* Registration Information */}
+              <Card className="bg-slate-700/50 border-slate-600">
+                <CardHeader>
+                  <CardTitle className="text-lg text-white">Registration Information</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-400">Group ID:</span>
+                      <p className="text-white font-semibold">{selectedRegistration.group_id}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Registration Date:</span>
+                      <p className="text-white">{new Date(selectedRegistration.created_at).toLocaleDateString()}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Status:</span>
+                      <p className={`font-semibold ${
+                        selectedRegistration.status === 'approved' ? 'text-green-400' :
+                        selectedRegistration.status === 'rejected' ? 'text-red-400' : 'text-yellow-400'
+                      }`}>{selectedRegistration.status.charAt(0).toUpperCase() + selectedRegistration.status.slice(1)}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Member Count:</span>
+                      <p className="text-white">{selectedRegistration.member_count}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Event Information */}
               <Card className="bg-slate-700/50 border-slate-600">
                 <CardHeader>
@@ -814,8 +844,8 @@ export default function AdminEventRegistrationsPage() {
                       <p className="text-white font-semibold">{selectedRegistration.event_name}</p>
                     </div>
                     <div>
-                      <span className="text-gray-400">Group ID:</span>
-                      <p className="text-white">{selectedRegistration.group_id}</p>
+                      <span className="text-gray-400">Event Category:</span>
+                      <p className="text-cyan-400">{selectedRegistration.event_category || 'N/A'}</p>
                     </div>
                     <div>
                       <span className="text-gray-400">Price per Member:</span>
@@ -829,10 +859,10 @@ export default function AdminEventRegistrationsPage() {
                 </CardContent>
               </Card>
 
-              {/* Leader Information */}
+              {/* Contact Person Information */}
               <Card className="bg-slate-700/50 border-slate-600">
                 <CardHeader>
-                  <CardTitle className="text-lg text-white">Leader Information</CardTitle>
+                  <CardTitle className="text-lg text-white">Contact Person Information</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4 text-sm">
@@ -862,30 +892,44 @@ export default function AdminEventRegistrationsPage() {
                   <CardTitle className="text-lg text-white">Group Members ({selectedRegistration.member_count})</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {selectedRegistration.members?.map((member, index) => (
-                      <div key={member.id} className="p-3 bg-slate-600/50 rounded-lg">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                          <div>
-                            <span className="text-gray-400">Name:</span>
-                            <p className="text-white font-semibold">{member.name}</p>
+                  {selectedRegistration.members && selectedRegistration.members.length > 0 ? (
+                    <div className="space-y-3">
+                      {selectedRegistration.members.map((member, index) => (
+                        <div key={member.id || index} className="p-3 bg-slate-600/50 rounded-lg">
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-sm">
+                            <div>
+                              <span className="text-gray-400">Name:</span>
+                              <p className="text-white font-semibold">{member.name}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">User ID:</span>
+                              <p className="text-white font-semibold">{member.user_id}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Phone:</span>
+                              <p className="text-cyan-400 font-semibold">{member.phone}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">College:</span>
+                              <p className="text-purple-400 font-semibold">{member.college}</p>
+                            </div>
                           </div>
-                          <div>
-                            <span className="text-gray-400">User ID:</span>
-                            <p className="text-white font-mono text-xs">{member.user_id}</p>
-                          </div>
-                          <div>
-                            <span className="text-gray-400">Email:</span>
-                            <p className="text-white">{member.email}</p>
-                          </div>
-                          <div>
-                            <span className="text-gray-400">Phone:</span>
-                            <p className="text-white">{member.phone}</p>
+                          <div className="mt-2 text-xs">
+                            <div>
+                              <span className="text-gray-400">Email: </span>
+                              <span className="text-blue-400">{member.email}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-400">No member details available</p>
+                      <p className="text-xs text-gray-500 mt-2">Member data may not be available for this registration</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -903,7 +947,7 @@ export default function AdminEventRegistrationsPage() {
                       </div>
                       <div>
                         <span className="text-gray-400">Amount:</span>
-                        <p className="text-green-400 font-bold">₹{selectedRegistration.total_amount}</p>
+                        <p className="text-green-400 font-bold">₹{selectedRegistration.total_amount.toLocaleString()}</p>
                       </div>
                     </div>
                     
@@ -913,11 +957,38 @@ export default function AdminEventRegistrationsPage() {
                         <Button
                           onClick={() => handleShowPaymentProof(selectedRegistration.payment_screenshot_path!)}
                           variant="outline"
-                          className="border-purple-500 text-black hover:bg-purple-500 hover:text-white"
+                          className="border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white"
                         >
                           <ImageIcon className="w-4 h-4 mr-2" />
                           View Payment Proof
                         </Button>
+                      </div>
+                    )}
+                    
+                    {selectedRegistration.status !== 'pending' && (
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-400">Reviewed By:</span>
+                          <p className="text-white">{selectedRegistration.reviewed_by || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Reviewed At:</span>
+                          <p className="text-white">
+                            {selectedRegistration.reviewed_at 
+                              ? new Date(selectedRegistration.reviewed_at).toLocaleString()
+                              : 'N/A'
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {selectedRegistration.rejection_reason && (
+                      <div>
+                        <span className="text-gray-400 block mb-2">Rejection Reason:</span>
+                        <p className="text-red-400 bg-red-900/20 p-3 rounded-lg border border-red-500/20">
+                          {selectedRegistration.rejection_reason}
+                        </p>
                       </div>
                     )}
                   </div>
