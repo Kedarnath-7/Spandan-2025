@@ -33,8 +33,8 @@ export class GroupRegistrationService {
         throw new Error('At least one member is required');
       }
 
-      if (formData.members.length > 12) {
-        throw new Error('Maximum 12 members allowed per group');
+      if (formData.members.length > 25) {
+        throw new Error('Maximum 25 members allowed per group');
       }
 
       if (!formData.paymentTransactionId) {
@@ -247,8 +247,8 @@ export class GroupRegistrationService {
     // Validate members
     if (!formData.members || formData.members.length === 0) {
       errors.push('At least one member is required');
-    } else if (formData.members.length > 12) {
-      errors.push('Maximum 12 members allowed per group');
+    } else if (formData.members.length > 25) {
+      errors.push('Maximum 25 members allowed per group');
     } else {
       // Validate each member
       formData.members.forEach((member, index) => {
