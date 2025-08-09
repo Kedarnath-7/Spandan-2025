@@ -131,7 +131,94 @@ class ExportService {
   }
 
   /**
-   * Export tier/pass registrations to CSV using registration_view
+   * Export tier registrations to CSV using registration_view
+   */
+  async exportTierRegistrationsCSV(): Promise<void> {
+    try {
+      const data = await this.getRegistrationViewData();
+      
+      // Filter only tier registrations
+      const tierData = data.filter(item => item.selection_type === 'tier');
+      
+      if (tierData.length === 0) {
+        throw new Error('No tier registrations found for export');
+      }
+      
+      // Transform data for better CSV column names
+      const csvData = tierData.map(item => ({
+        'Group ID': item.group_id,
+        'User ID': item.user_id,
+        'Name': item.name,
+        'Email': item.email,
+        'College': item.college,
+        'Phone': item.phone,
+        'Location': item.college_location || '',
+        'Tier': item.tier || '',
+        'Amount': item.amount,
+        'Total Amount': item.total_amount,
+        'Transaction ID': item.payment_transaction_id,
+        'Status': item.status,
+        'Created At': new Date(item.created_at).toLocaleString(),
+        'Reviewed At': item.reviewed_at ? new Date(item.reviewed_at).toLocaleString() : '',
+        'Reviewed By': item.reviewed_by || '',
+        'Rejection Reason': item.rejection_reason || '',
+        'Member Count': item.member_count
+      }));
+
+      this.generateCSV(csvData, 'tier_registrations');
+    } catch (error) {
+      console.error('Export tier registrations CSV error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Export pass registrations to CSV using registration_view
+   */
+  async exportPassRegistrationsCSV(): Promise<void> {
+    try {
+      const data = await this.getRegistrationViewData();
+      
+      // Filter only pass registrations
+      const passData = data.filter(item => item.selection_type === 'pass');
+      
+      if (passData.length === 0) {
+        throw new Error('No pass registrations found for export');
+      }
+      
+      // Transform data for better CSV column names
+      const csvData = passData.map(item => ({
+        'Group ID': item.group_id,
+        'User ID': item.user_id,
+        'Name': item.name,
+        'Email': item.email,
+        'College': item.college,
+        'Phone': item.phone,
+        'Location': item.college_location || '',
+        'Delegate ID': item.delegate_user_id || '',
+        'Pass Type': item.pass_type || '',
+        'Pass Tier': item.pass_tier || '',
+        'Pass ID': item.pass_id || '',
+        'Amount': item.amount,
+        'Total Amount': item.total_amount,
+        'Transaction ID': item.payment_transaction_id,
+        'Status': item.status,
+        'Created At': new Date(item.created_at).toLocaleString(),
+        'Reviewed At': item.reviewed_at ? new Date(item.reviewed_at).toLocaleString() : '',
+        'Reviewed By': item.reviewed_by || '',
+        'Rejection Reason': item.rejection_reason || '',
+        'Member Count': item.member_count
+      }));
+
+      this.generateCSV(csvData, 'pass_registrations');
+    } catch (error) {
+      console.error('Export pass registrations CSV error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Export all registrations to CSV using registration_view (legacy method)
    */
   async exportRegistrationsCSV(): Promise<void> {
     try {

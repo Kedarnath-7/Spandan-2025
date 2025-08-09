@@ -422,16 +422,50 @@ export default function AdminRegistrationsPage() {
     setRefreshing(false);
   };
 
-  // Export CSV function using database view
-  const handleExportCSV = async () => {
+  // Export CSV functions
+  const handleExportTierCSV = async () => {
+    try {
+      await exportService.exportTierRegistrationsCSV();
+      toast({
+        title: "Export Successful",
+        description: "Tier registration data has been exported to CSV.",
+      });
+    } catch (error) {
+      console.error('Export tier error:', error);
+      toast({
+        title: "Export Failed",
+        description: error instanceof Error ? error.message : "Failed to export tier registration data. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleExportPassCSV = async () => {
+    try {
+      await exportService.exportPassRegistrationsCSV();
+      toast({
+        title: "Export Successful",
+        description: "Pass registration data has been exported to CSV.",
+      });
+    } catch (error) {
+      console.error('Export pass error:', error);
+      toast({
+        title: "Export Failed",
+        description: error instanceof Error ? error.message : "Failed to export pass registration data. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleExportAllCSV = async () => {
     try {
       await exportService.exportRegistrationsCSV();
       toast({
         title: "Export Successful",
-        description: "Registration data has been exported to CSV.",
+        description: "All registration data has been exported to CSV.",
       });
     } catch (error) {
-      console.error('Export error:', error);
+      console.error('Export all error:', error);
       toast({
         title: "Export Failed",
         description: "Failed to export registration data. Please try again.",
@@ -531,11 +565,27 @@ export default function AdminRegistrationsPage() {
               </Button>
               <Button
                 variant="outline"
-                onClick={handleExportCSV}
-                className=" bg-blue-600/20 border-blue-200/50 text-white hover:border-blue-300 hover:text-black"
+                onClick={handleExportTierCSV}
+                className=" bg-green-600/20 border-green-200/50 text-white hover:border-green-300 hover:text-black"
               >
                 <Download className="w-4 h-4 mr-2" />
-                Export CSV
+                Export Tiers
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleExportPassCSV}
+                className=" bg-purple-600/20 border-purple-200/50 text-white hover:border-purple-300 hover:text-black"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export Passes
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleExportAllCSV}
+                className=" bg-orange-600/20 border-orange-200/50 text-white hover:border-orange-300 hover:text-black"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export All
               </Button>
             </div>
           </div>
