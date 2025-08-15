@@ -1,5 +1,14 @@
 import { supabase } from '@/lib/supabase';
 
+// Function to format date as dd/mm/yyyy
+function formatDateForCSV(dateString: string): string {
+  const date = new Date(dateString);
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
 export interface RegistrationViewData {
   group_id: string;
   user_id: string;
@@ -158,8 +167,8 @@ class ExportService {
         'Total Amount': item.total_amount,
         'Transaction ID': item.payment_transaction_id,
         'Status': item.status,
-        'Created At': new Date(item.created_at).toLocaleString(),
-        'Reviewed At': item.reviewed_at ? new Date(item.reviewed_at).toLocaleString() : '',
+        'Created At': formatDateForCSV(item.created_at),
+        'Reviewed At': item.reviewed_at ? formatDateForCSV(item.reviewed_at) : '',
         'Reviewed By': item.reviewed_by || '',
         'Rejection Reason': item.rejection_reason || '',
         'Member Count': item.member_count
@@ -203,8 +212,8 @@ class ExportService {
         'Total Amount': item.total_amount,
         'Transaction ID': item.payment_transaction_id,
         'Status': item.status,
-        'Created At': new Date(item.created_at).toLocaleString(),
-        'Reviewed At': item.reviewed_at ? new Date(item.reviewed_at).toLocaleString() : '',
+        'Created At': formatDateForCSV(item.created_at),
+        'Reviewed At': item.reviewed_at ? formatDateForCSV(item.reviewed_at) : '',
         'Reviewed By': item.reviewed_by || '',
         'Rejection Reason': item.rejection_reason || '',
         'Member Count': item.member_count
@@ -243,8 +252,8 @@ class ExportService {
         'Total Amount': item.total_amount,
         'Transaction ID': item.payment_transaction_id,
         'Status': item.status,
-        'Created At': new Date(item.created_at).toLocaleString(),
-        'Reviewed At': item.reviewed_at ? new Date(item.reviewed_at).toLocaleString() : '',
+        'Created At': formatDateForCSV(item.created_at),
+        'Reviewed At': item.reviewed_at ? formatDateForCSV(item.reviewed_at) : '',
         'Reviewed By': item.reviewed_by || '',
         'Rejection Reason': item.rejection_reason || '',
         'Member Count': item.member_count
@@ -282,10 +291,10 @@ class ExportService {
         'Status': item.status,
         'Payment Transaction ID': item.payment_transaction_id,
         'Reviewed By': item.reviewed_by || '',
-        'Reviewed At': item.reviewed_at || '',
+        'Reviewed At': item.reviewed_at ? formatDateForCSV(item.reviewed_at) : '',
         'Rejection Reason': item.rejection_reason || '',
-        'Created At': item.created_at,
-        'Updated At': item.updated_at
+        'Created At': formatDateForCSV(item.created_at),
+        'Updated At': formatDateForCSV(item.updated_at)
       }));
 
       this.generateCSV(csvData, 'event_registrations');
@@ -333,10 +342,10 @@ class ExportService {
         'Status': item.status,
         'Payment Transaction ID': item.payment_transaction_id,
         'Reviewed By': item.reviewed_by || '',
-        'Reviewed At': item.reviewed_at || '',
+        'Reviewed At': item.reviewed_at ? formatDateForCSV(item.reviewed_at) : '',
         'Rejection Reason': item.rejection_reason || '',
-        'Created At': item.created_at,
-        'Updated At': item.updated_at
+        'Created At': formatDateForCSV(item.created_at),
+        'Updated At': formatDateForCSV(item.updated_at)
       }));
 
       // Create safe filename from event name

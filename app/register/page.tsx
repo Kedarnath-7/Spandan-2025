@@ -1014,7 +1014,7 @@ export default function EnhancedRegisterPage() {
                       <div className="space-y-3">
                         <h4 className="text-lg font-semibold text-blue-300">Payment Instructions</h4>
                         <ol className="text-sm text-gray-300 space-y-2 list-decimal list-inside">
-                          <li>Scan the QR code with any UPI app or use the UPI ID provided below</li>
+                          <li>Scan the QR code with any UPI app</li>
                           <li>Enter the exact amount: <span className="font-bold text-green-400">₹{totalAmount}</span></li>
                           <li>Complete the payment and note down the transaction ID</li>
                           <li>Enter the transaction ID in the field below</li>
@@ -1089,7 +1089,7 @@ export default function EnhancedRegisterPage() {
                             </div>
                           </div>
                           
-                          <div>
+                          {/* <div>
                             <Label className="text-gray-300 text-sm">UPI ID</Label>
                             <div className="flex items-center space-x-2 mt-1">
                               <div className="bg-slate-600 px-3 py-2 rounded-lg flex-1">
@@ -1102,12 +1102,12 @@ export default function EnhancedRegisterPage() {
                                 variant="outline"
                                 size="sm"
                                 disabled={copying}
-                                className="border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white"
+                                className="border-purple-500 text-black-800 hover:bg-purple-500 hover:text-white"
                               >
                                 {copying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
                               </Button>
                             </div>
-                          </div>
+                          </div> */}
 
                           <div>
                             <Label className="text-gray-300 text-sm">Amount to Pay</Label>
