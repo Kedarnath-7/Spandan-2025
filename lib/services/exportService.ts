@@ -63,21 +63,38 @@ export interface EventRegistrationViewData {
 
 class ExportService {
   /**
-   * Get registration data from registration_view for CSV export
+   * Get registration data from registration_view for CSV export (with pagination to get all data)
    */
   async getRegistrationViewData(): Promise<RegistrationViewData[]> {
     try {
-      const { data, error } = await supabase
-        .from('registration_view')
-        .select('*')
-        .order('created_at', { ascending: false });
+      let allData: RegistrationViewData[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (error) {
-        console.error('Error fetching registration view data:', error);
-        throw error;
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('registration_view')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+
+        if (error) {
+          console.error('Error fetching registration view data:', error);
+          throw error;
+        }
+
+        if (data && data.length > 0) {
+          allData = [...allData, ...data];
+          hasMore = data.length === pageSize;
+          page++;
+        } else {
+          hasMore = false;
+        }
       }
 
-      return data || [];
+      console.log(`Fetched ${allData.length} total registration records`);
+      return allData;
     } catch (error) {
       console.error('Get registration view data error:', error);
       throw error;
@@ -85,21 +102,38 @@ class ExportService {
   }
 
   /**
-   * Get event registration data from event_registration_view for CSV export
+   * Get event registration data from event_registration_view for CSV export (with pagination to get all data)
    */
   async getEventRegistrationViewData(): Promise<EventRegistrationViewData[]> {
     try {
-      const { data, error } = await supabase
-        .from('event_registration_view')
-        .select('*')
-        .order('created_at', { ascending: false });
+      let allData: EventRegistrationViewData[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (error) {
-        console.error('Error fetching event registration view data:', error);
-        throw error;
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('event_registration_view')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+
+        if (error) {
+          console.error('Error fetching event registration view data:', error);
+          throw error;
+        }
+
+        if (data && data.length > 0) {
+          allData = [...allData, ...data];
+          hasMore = data.length === pageSize;
+          page++;
+        } else {
+          hasMore = false;
+        }
       }
 
-      return data || [];
+      console.log(`Fetched ${allData.length} total event registration records`);
+      return allData;
     } catch (error) {
       console.error('Get event registration view data error:', error);
       throw error;
@@ -305,27 +339,45 @@ class ExportService {
   }
 
   /**
-   * Export event-specific registrations to CSV using event_registration_view
+   * Export event-specific registrations to CSV using event_registration_view (with pagination)
    */
   async exportEventSpecificCSV(eventName: string): Promise<void> {
     try {
-      const { data, error } = await supabase
-        .from('event_registration_view')
-        .select('*')
-        .eq('event_name', eventName)
-        .order('created_at', { ascending: false });
+      let allData: EventRegistrationViewData[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (error) {
-        console.error('Error fetching event-specific data:', error);
-        throw error;
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('event_registration_view')
+          .select('*')
+          .eq('event_name', eventName)
+          .order('created_at', { ascending: false })
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+
+        if (error) {
+          console.error('Error fetching event-specific data:', error);
+          throw error;
+        }
+
+        if (data && data.length > 0) {
+          allData = [...allData, ...data];
+          hasMore = data.length === pageSize;
+          page++;
+        } else {
+          hasMore = false;
+        }
       }
 
-      if (!data || data.length === 0) {
+      if (allData.length === 0) {
         throw new Error(`No registrations found for event: ${eventName}`);
       }
+
+      console.log(`Fetched ${allData.length} registrations for event: ${eventName}`);
       
       // Transform data for better CSV column names
-      const csvData = data.map(item => ({
+      const csvData = allData.map(item => ({
         'Group ID': item.group_id,
         'User ID': item.user_id,
         'Name': item.name,
